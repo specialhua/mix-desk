@@ -59,6 +59,9 @@ func (a *app) buildMenu() {
 			// Cmd+K is the view's shortcut, not an accelerator here: the
 			// admin's editor binds it, and an accelerator would take it.
 			{Label: a.tr("前往页面或操作…", "Go to a Page or Action…"), Click: click(a.openPalette)},
+			{Label: a.tr("专注模式", "Focus Mode"), Type: mygo.MenuItemCheckbox, Checked: a.writing.focus, Accelerator: focusAccelerator, Click: click(a.toggleFocus)},
+			{Label: a.tr("打字机滚动", "Typewriter Scrolling"), Type: mygo.MenuItemCheckbox, Checked: a.set.Typewriter, Click: click(func() { a.setTypewriter(!a.set.Typewriter) })},
+			mygo.Separator(),
 			{Label: a.tr("显示或隐藏侧边栏", "Toggle Sidebar"), Click: click(func() {
 				if a.shell != nil {
 					a.shell.SetLeftExpanded(!a.shell.LeftExpanded())

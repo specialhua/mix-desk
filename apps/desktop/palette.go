@@ -73,6 +73,8 @@ func (a *app) paletteItems() []command.Item {
 		lang = act("lang-zh", "切换到简体中文", lucide.Languages(), "", "language", "语言", "chinese")
 	}
 	return append(items,
+		act("focus", a.tr("专注模式", "Focus Mode"), lucide.Maximize2(), focusShortcutText(), "focus", "zen", "fullscreen", "专注", "全屏", "写作"),
+		act("typewriter", a.tr("打字机滚动", "Typewriter Scrolling"), lucide.TextCursorInput(), "", "typewriter", "scroll", "打字机", "写作"),
 		act("reload", a.tr("刷新", "Reload"), lucide.RefreshCw(), shortcutText("R"), "reload", "refresh"),
 		act("back", a.tr("后退", "Back"), lucide.ArrowLeft(), shortcutText("["), "back"),
 		act("forward", a.tr("前进", "Forward"), lucide.ArrowRight(), shortcutText("]"), "forward"),
@@ -102,6 +104,12 @@ func (a *app) runCommand(id string) {
 		}
 	}
 	switch strings.TrimPrefix(id, "act:") {
+	case "focus":
+		a.toggleFocus()
+		a.focusWeb()
+	case "typewriter":
+		a.setTypewriter(!a.set.Typewriter)
+		a.focusWeb()
 	case "reload":
 		page(func() { a.web.Page().Reload() })
 	case "back":

@@ -19,6 +19,9 @@ type settings struct {
 	Appearance string `json:"appearance"`
 	// Lang is "zh-CN" or "en-US", the web admin's locales.
 	Lang string `json:"lang"`
+	// Typewriter keeps the line being written in the middle of a write
+	// page (writing.go).
+	Typewriter bool `json:"typewriter,omitempty"`
 }
 
 func settingsPath() (string, error) {

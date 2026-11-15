@@ -25,6 +25,7 @@ Mix Space 后台的桌面客户端，基于 [MyGo](https://mygo.run) 和 [Onevra
 | 设备客户端 `mxs-cli` | `apps/core/src/modules/auth/auth.constant.ts` | 服务端只接受白名单里的客户端，桌面端借用 CLI 的，所以授权页显示 “Mix Space CLI” |
 | 路由元数据、中英文标题、Lucide 图标 | `apps/admin/src/views/**/page.tsx` | 生成原生侧边栏（`go generate`） |
 | 存储键 `admin:sidebar-collapsed`、`theme-mode`、`mx-admin-ui-locale`，两个 `aria-label`，`index.html` 里的 `#app`、`#initial-loader` | `apps/admin` | 预加载脚本：收起 Web 侧边栏，同步外观和语言，判断页面何时加载完成 |
+| 写作页的编辑器和顶栏（见 `docs/writing-plan.md`） | `apps/admin` 写作页 | 预加载脚本：字数、专注模式样式、打字机滚动 |
 
 上游变化时，在这里适配，不去改上游：
 
@@ -47,6 +48,15 @@ Onevra 的侧边栏外壳：macOS 上有标题栏材质，Windows 上有 Mica。
 可以用中文、英文或路径搜到任意后台页面，也能执行刷新、前进后退、切换外观或语言、更换服务器、退出登录等操作。
 
 `⌘K` 不是菜单快捷键，而是视图快捷键：后台编辑器自己绑定了 `⌘K`（插入链接），页面处理过的按键会留给页面。
+
+### 写作
+
+写作页（写博文、写手记、写页面）上的原生增强，规划见 [docs/writing-plan.md](docs/writing-plan.md)：
+
+- **专注模式 `⇧⌘F`**：在当前窗口内铺满（不进入系统全屏），收起侧边栏、隐藏写作页顶栏。再按一次即恢复。
+- **打字机滚动**：光标所在行停在略高于中间的位置，在“显示”菜单或设置球里开关，设置会保存。
+- **液态玻璃**：写作页上网页铺满窗口，标题栏的面包屑和右下角的设置球都是悬浮的玻璃（MyGo glass 插件，macOS 26 及以上是系统原生 Liquid Glass，能透出下面的正文）。
+- **设置球**：点开后向左展开统计（正文字数，写作时长“本次 4m · 累计 1h 20m”，累计按文章存在本机、只在窗口显示时计时）、专注和打字机两个开关，再点收起。
 
 ### 设置 `⌘,`
 

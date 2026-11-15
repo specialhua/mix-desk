@@ -114,13 +114,28 @@ func (a *app) webView(c *ui.Context) ui.Element {
 // contentView is the web admin beside the shell's sidebar, below its
 // header, with the command palette over it.
 func (a *app) contentView(c *ui.Context) {
-	ui.Column(c).Fill().Padding(sidebar.HeaderHeight(c), 0, 0, 0).AlignItems(ui.Stretch).Children(func() {
+	header := sidebar.HeaderHeight(c)
+	// A write page runs under the header and the status bar, which float
+	// over it in Liquid Glass (writing.go); the page keeps the header's
+	// height clear at its top itself. Other pages start below the header.
+	writePage := isWriteRoute(a.route)
+	col := ui.Column(c).Fill().AlignItems(ui.Stretch)
+	if !writePage {
+		col.Padding(header, 0, 0, 0)
+	}
+	col.Children(func() {
 		if a.web != nil {
 			a.webView(c).Grow(1).MinWidth(0)
 		} else {
 			ui.Box(c).Grow(1) // tests draw the view without a web view
 		}
 	})
+	if writePage {
+		a.setPageHeader(header)
+		a.sidebarToggleGlass(c, header)
+		a.statusBarView(c)
+	}
+
 	// Not a menu accelerator: the admin's editor binds Cmd+K itself, and the
 	// page keeps the keys it handles.
 	if c.Shortcut(ui.Cmd, ui.KeyK) && !c.ShortcutRepeated() {
@@ -133,6 +148,15 @@ func (a *app) contentView(c *ui.Context) {
 // contentTitle shows where the web admin is, in the shell's header: the
 // sidebar items down to the chosen one, whose ancestors go back up.
 func (a *app) contentTitle(c *ui.Context) {
+	ui.Row(c).Fill().AlignItems(ui.Center).Children(func() {
+		if len(navTrail(a.nav)) > 0 {
+			glassCapsule(c).Padding(0, 14).Children(func() { a.breadcrumbs(c) })
+		}
+	})
+}
+
+// breadcrumbs are the sidebar items down to the chosen one.
+func (a *app) breadcrumbs(c *ui.Context) {
 	trail := navTrail(a.nav)
 	if len(trail) == 0 {
 		return

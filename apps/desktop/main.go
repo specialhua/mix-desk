@@ -53,6 +53,9 @@ type app struct {
 	// handingOff is set while the web view loads /device/web-handoff.
 	handingOff bool
 
+	// The writing features (writing.go).
+	writing writing
+
 	// toasts wait for the main window's next frame (notify).
 	toasts []ui.Toast
 
@@ -111,6 +114,7 @@ func main() {
 		})
 		a.win = a.shell.Window()
 		a.keepInBackground()
+		a.setupWriting()
 		a.buildMenu()
 		if a.set.Server != "" {
 			a.connect(a.set.Server, false)
@@ -226,6 +230,7 @@ func (a *app) routeChanged(route string) {
 	prev := a.route
 	a.route = route
 	a.nav = activeNavPath(route)
+	a.writeRouteChanged(prev, route)
 	if strings.HasPrefix(route, "/login") {
 		// Signed out, or the session expired: try the Keychain's token once.
 		if token := loadToken(); token != "" && !a.login.tried && !a.login.busy {
