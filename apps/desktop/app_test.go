@@ -90,6 +90,9 @@ func TestPreloadScript(t *testing.T) {
 	if !strings.Contains(s, `"Bridge.Route"`) {
 		t.Error("the script does not report routes")
 	}
+	if !strings.Contains(s, `"Bridge.Ready"`) || strings.Contains(s, "__READY_TIMEOUT__") {
+		t.Error("the script does not report when the page is ready")
+	}
 }
 
 // fakeServer answers the device authorization as Better Auth does: pending
@@ -269,6 +272,15 @@ func TestPageKind(t *testing.T) {
 	if got := a.pageKind(); got != pageSetup {
 		t.Errorf("no server: %q", got)
 	}
+	a.set.Server, a.probing = "https://s.example", true
+	if got := a.pageKind(); got != pageConnecting {
+		t.Errorf("reconnecting to the saved server: %q", got)
+	}
+	a.set.Server = ""
+	if got := a.pageKind(); got != pageSetup {
+		t.Errorf("connecting from the setup form: %q", got)
+	}
+	a.probing = false
 	a.srv = server{Root: "https://s.example"}
 	if got := a.pageKind(); got != pageConnecting {
 		t.Errorf("no web view: %q", got)

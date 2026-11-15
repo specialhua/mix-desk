@@ -24,6 +24,9 @@ const (
 // pageKind is the page the state asks for.
 func (a *app) pageKind() string {
 	switch {
+	case a.srv.Root == "" && a.probing && a.set.Server != "":
+		// Reconnecting to the saved server at launch: not the setup form.
+		return pageConnecting
 	case a.srv.Root == "":
 		return pageSetup
 	case a.web == nil:
@@ -62,9 +65,7 @@ func (a *app) pageView(c *ui.Context) {
 		case pageSetup:
 			a.setupView(c)
 		case pageConnecting:
-			ui.Column(c).Fill().Center().Children(func() {
-				components.Spinner(c, components.SpinnerRing).Label(a.tr("正在打开后台…", "Opening the admin…"))
-			})
+			a.loadingView(c)
 		case pageError:
 			a.loadErrorView(c)
 		case pageLogin:
@@ -85,11 +86,29 @@ func (a *app) pageView(c *ui.Context) {
 				})
 			}
 			if a.web != nil {
-				ui.WebView(c, a.web).Grow(1)
+				a.webView(c).Grow(1)
 			}
 		}
 	})
 	a.flushToasts(c)
+}
+
+// loadingView is the spinner shown while the web admin opens.
+func (a *app) loadingView(c *ui.Context) {
+	ui.Column(c).Fill().Center().Background(c.Theme().Background).Children(func() {
+		components.Spinner(c, components.SpinnerRing).Label(a.tr("正在打开后台…", "Opening the admin…"))
+	})
+}
+
+// webView is the web admin's page, under the loading spinner until it is
+// ready to show: the same spinner as while connecting, so that one gives
+// way to the other without a blank page between them.
+func (a *app) webView(c *ui.Context) ui.Element {
+	e := ui.WebView(c, a.web)
+	if !a.webReady {
+		e.Children(func() { a.loadingView(c) })
+	}
+	return e
 }
 
 // contentView is the web admin beside the shell's sidebar, below its
@@ -97,7 +116,7 @@ func (a *app) pageView(c *ui.Context) {
 func (a *app) contentView(c *ui.Context) {
 	ui.Column(c).Fill().Padding(sidebar.HeaderHeight(c), 0, 0, 0).AlignItems(ui.Stretch).Children(func() {
 		if a.web != nil {
-			ui.WebView(c, a.web).Grow(1).MinWidth(0)
+			a.webView(c).Grow(1).MinWidth(0)
 		} else {
 			ui.Box(c).Grow(1) // tests draw the view without a web view
 		}

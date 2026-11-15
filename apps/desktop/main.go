@@ -46,6 +46,10 @@ type app struct {
 
 	// loadErr is why the web admin's page failed to load, e.g. offline.
 	loadErr string
+	// webReady is set once the web admin's page has drawn something to
+	// show (bridge.go); until then a native spinner covers the web view,
+	// which is blank or shows the admin's own loading screens.
+	webReady bool
 	// handingOff is set while the web view loads /device/web-handoff.
 	handingOff bool
 
@@ -106,6 +110,7 @@ func main() {
 			Theme: a.beginFrame,
 		})
 		a.win = a.shell.Window()
+		a.keepInBackground()
 		a.buildMenu()
 		if a.set.Server != "" {
 			a.connect(a.set.Server, false)
@@ -115,6 +120,10 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+// webReadyTimeout is how long the spinner covers a page that never says it
+// is ready.
+const webReadyTimeout = 20 * time.Second
 
 // connect resolves the server and opens the web admin. Called on the main
 // thread; the network goes on a goroutine.
@@ -168,6 +177,16 @@ func (a *app) openWeb(url string) {
 	}
 	a.web = web
 	a.loadErr = ""
+	a.webReady = false
+	// Should the page never say it is ready (a page that is not the admin,
+	// or an admin the preload script no longer understands), show it anyway.
+	time.AfterFunc(webReadyTimeout, func() {
+		a.win.Update(func() {
+			if a.web == web {
+				a.webReady = true
+			}
+		})
+	})
 	page := web.Page()
 	page.OnDidFailLoad(func(err *mygo.LoadError) {
 		a.win.Update(func() {

@@ -26,12 +26,12 @@ Mix Space 后台的桌面客户端，基于 [MyGo](https://mygo.run) 和 [Onevra
 | Better Auth `/auth/ok`、设备授权、`/device/web-handoff` | `apps/core` auth | 探测服务器、Passkey 登录、把令牌换成后台 Cookie |
 | 设备客户端 `mxs-cli` | `apps/core/src/modules/auth/auth.constant.ts` | 服务端只接受白名单里的客户端，桌面端借用 CLI 的，所以授权页显示 “Mix Space CLI” |
 | 路由元数据、中英文标题、Lucide 图标 | `apps/admin/src/views/**/page.tsx` | 生成原生侧边栏（`go generate`） |
-| 存储键 `admin:sidebar-collapsed`、`theme-mode`、`mx-admin-ui-locale` 和两个 `aria-label` | `apps/admin` | 预加载脚本：收起 Web 侧边栏，同步外观和语言 |
+| 存储键 `admin:sidebar-collapsed`、`theme-mode`、`mx-admin-ui-locale`，两个 `aria-label`，`index.html` 里的 `#app`、`#initial-loader` | `apps/admin` | 预加载脚本：收起 Web 侧边栏，同步外观和语言，判断页面何时加载完成 |
 
 上游变化时，在这里适配，不去改上游：
 
 - 后台增删页面：在 `apps/desktop` 里运行 `go generate`（需要先 `pnpm install`），检查 `nav_gen.go` 和 `icons/` 的 diff。
-- 后台改了存储键或 `aria-label`：更新 `bridge.go`。不更新的话，Web 侧边栏的按钮会重新出现，但不影响使用。
+- 后台改了存储键、`aria-label` 或 `#app`/`#initial-loader`：更新 `bridge.go`。不更新的话，Web 侧边栏的按钮会重新出现，加载转圈要等 8 秒超时才消失，但不影响使用。
 - 服务端改了认证接口：更新 `auth.go` 和 `server.go`。
 
 如果某项功能确实需要服务端配合（比如给桌面端单独注册一个设备客户端），应当另向 mx-core 提 PR，不要放在这个应用的改动里。
@@ -41,6 +41,8 @@ Mix Space 后台的桌面客户端，基于 [MyGo](https://mygo.run) 和 [Onevra
 ### 原生窗口与侧边栏
 
 Onevra 的侧边栏外壳：macOS 上有标题栏材质，Windows 上有 Mica。侧边栏可以拖动调宽、折叠，从后台路由自动生成，并跟随当前页面高亮。标题栏显示面包屑，点击上级可以跳回去。
+
+在 macOS 上，点关闭按钮或 `⌘W` 只隐藏窗口，应用留在后台继续运行（后台的 WebSocket 通知照常收到），点 Dock 图标恢复原样；`⌘Q` 才退出。Windows 和 Linux 上没有托盘图标，关闭窗口仍然退出应用。
 
 ### 命令面板 `⌘K`
 
