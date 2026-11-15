@@ -35,9 +35,11 @@ func (a *app) pageKind() string {
 		return pageError
 	case strings.HasPrefix(a.route, "/login") && !a.login.password:
 		return pageLogin
-	case a.route == "" || isPublicRoute(a.route):
+	case a.route == "" && !a.webReady, isPublicRoute(a.route):
 		// Loading, or a page of the web admin without its shell (the
-		// password form, setup): the page alone.
+		// password form, setup): the page alone. A page that never
+		// reported its route (the preload script failing) gets the shell
+		// once it shows, rather than none at all.
 		return pageWeb
 	}
 	return pageMain

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"github.com/egoist/mygo"
 	"image/png"
 	"net/http"
 	"net/http/httptest"
@@ -284,6 +285,17 @@ func TestPageKind(t *testing.T) {
 	a.srv = server{Root: "https://s.example"}
 	if got := a.pageKind(); got != pageConnecting {
 		t.Errorf("no web view: %q", got)
+	}
+	// A page that never reported its route: alone while it loads, then
+	// with the shell, not stuck without one (the preload script failing,
+	// as on WebView2 in 0.3.0).
+	a.web, a.route, a.webReady = &mygo.WebView{}, "", false
+	if got := a.pageKind(); got != pageWeb {
+		t.Errorf("loading, no route: %q", got)
+	}
+	a.webReady = true
+	if got := a.pageKind(); got != pageMain {
+		t.Errorf("shown, no route: %q", got)
 	}
 }
 

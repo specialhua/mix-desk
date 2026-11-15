@@ -103,9 +103,19 @@ func preloadScript(origin, adminPath, lang string) string {
     'button[aria-label="展开侧边栏"]', 'button[aria-label="Expand sidebar"]',
     'button[aria-label="打开导航"]', 'button[aria-label="Open navigation"]',
   ].join(",");
-  const style = document.createElement("style");
-  style.textContent = sidebarButtons + "{display:none!important}";
-  (document.head || document.documentElement).appendChild(style);
+  // The script runs as the document is created: WebView2 (Windows) runs it
+  // before there is an <html> element to add to, which WKWebView has.
+  const addStyle = (css) => {
+    const style = document.createElement("style");
+    style.textContent = css;
+    const put = () => (document.head || document.documentElement).appendChild(style);
+    if (document.documentElement) return put();
+    const wait = new MutationObserver(() => {
+      if (document.documentElement) { wait.disconnect(); put(); }
+    });
+    wait.observe(document, {childList: true});
+  };
+  addStyle(sidebarButtons + "{display:none!important}");
   const call = (name, arg) => {
     try { window.mygo && window.mygo.call(name, arg); } catch {}
   };
@@ -157,15 +167,13 @@ func preloadScript(origin, adminPath, lang string) string {
   const isWrite = () => /^\/(posts|notes|pages)\/edit(?=$|[?])/.test(location.hash.replace(/^#/, ""));
   // The root editor, not one nested in a block such as a callout.
   const EDITOR = '[data-lexical-editor="true"]:not([data-lexical-editor] [data-lexical-editor]), .cm-content';
-  const writeStyle = document.createElement("style");
-  writeStyle.textContent = [
+  addStyle([
     // The app's header floats over the top of a write page: keep it clear.
     "form:has([data-lexical-editor], .cm-content) > section{padding-top:var(--mx-desktop-header,0px)!important}",
     "html.mx-desktop-focus form:has([data-lexical-editor]) > section > div:first-child{display:none!important}",
     // The root editor only: callouts and other blocks nest editors of their own.
     "html.mx-desktop-typewriter [data-lexical-editor]:not([data-lexical-editor] [data-lexical-editor]){padding-bottom:50vh!important}",
-  ].join("\n");
-  (document.head || document.documentElement).appendChild(writeStyle);
+  ].join("\n"));
 
   const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]/g;
   const countWords = (text) => {
