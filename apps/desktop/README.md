@@ -26,6 +26,7 @@ Mix Space 后台的桌面客户端，基于 [MyGo](https://mygo.run) 和 [Onevra
 | 路由元数据、中英文标题、Lucide 图标 | `apps/admin/src/views/**/page.tsx` | 生成原生侧边栏（`go generate`） |
 | 存储键 `admin:sidebar-collapsed`、`theme-mode`、`mx-admin-ui-locale`，两个 `aria-label`，`index.html` 里的 `#app`、`#initial-loader` | `apps/admin` | 预加载脚本：收起 Web 侧边栏，同步外观和语言，判断页面何时加载完成 |
 | 写作页的编辑器和顶栏（见 `docs/writing-plan.md`） | `apps/admin` 写作页 | 预加载脚本：字数、专注模式样式、打字机滚动 |
+| 设计 token（`--color-*`）、Tailwind 灰阶 `--color-neutral-*`、编辑器的 `--rc-host-*`、`<html>` 上的 `.dark` | `apps/admin/src/styles/tokens.css`、`@haklex/rich-editor` | 配色主题（`themes/*.css`） |
 
 上游变化时，在这里适配，不去改上游：
 
@@ -65,7 +66,20 @@ Onevra 的侧边栏外壳：macOS 上有标题栏材质，Windows 上有 Mica。
   <img src="docs/screenshots/settings-dark.png" alt="设置窗口（深色）" width="360" />
 </p>
 
-独立的可搜索设置窗口，包含服务地址、界面语言、外观（浅色、深色、跟随系统，应用和后台一起切换），以及账户相关的操作。
+独立的可搜索设置窗口，包含服务地址、界面语言、外观（浅色、深色、跟随系统，应用和后台一起切换）、配色主题，以及账户相关的操作。
+
+### 配色主题
+
+可以给后台换一套配色，目前有 **Atom**（One Light / One Dark，参照 [obsidian-atom](https://github.com/kognise/obsidian-atom)）。浅色和深色仍由“外观”决定，主题只决定两者各自的颜色。
+
+服务器上跑的通常是官方镜像，桌面端不能改后台代码，所以主题是预加载脚本注入的一份 CSS（`themes/<id>.css`）。它覆盖后台和编辑器读取的 CSS 变量：后台的设计 token、Tailwind 的灰阶和彩色色阶（徽标、状态色换成 Atom 的色相）、编辑器 `@haklex/rich-editor` 留给宿主页面的 `--rc-host-*`，以及代码编辑器（Monaco、CodeMirror）的背景。所有规则都限定在 `<html data-mx-theme="<id>">` 下，属性由预加载脚本按“主题范围”设置：
+
+- **仅写作页**（默认）：只在写博文、手记、页面（包括编辑草稿）时换色，按写作页逐项适配；原生侧边栏和窗口保持原有配色。
+- **全局**：后台所有页面一起换色，原生界面（侧边栏底色、命令面板、设置窗口）也换成主题配色。后台由服务器提供，部分页面可能不一致，设置里会提示。
+
+换色前脚本会检查页面是否定义了主题要覆盖的变量。如果后台改了名，就不套用主题，弹出提示，原生界面也恢复原有配色。
+
+新增主题：在 `themes/` 下放一个 `<id>.css`，并在 `themes.go` 的 `colorThemes` 里加一项（名称和原生界面的浅色、深色配色）。设置和命令面板会自动列出它。
 
 ### 连接与登录
 

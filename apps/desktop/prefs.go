@@ -16,6 +16,7 @@ func (a *app) openPrefs() {
 			// The settings surface has its own title.
 			HeaderLeading: func(*ui.Context) {},
 			Content:       a.prefsView,
+			Theme:         a.frameTheme,
 		}).Window()
 		win := a.prefs
 		win.OnClosed(func() {
@@ -125,6 +126,34 @@ func (a *app) prefsCategories() []components.SettingsCategory {
 					sel.Trigger.Label(t("外观", "Appearance"))
 					if sel.Changed() {
 						a.setAppearance(v)
+					}
+				},
+			}, {
+				ID: "color-theme", Title: t("配色主题", "Color theme"),
+				Description: t("后台和应用的配色，浅色和深色各有一套。", "The colors of the admin and the app, in light and dark."),
+				Keywords:    themeKeywords,
+				Build: func(c *ui.Context) {
+					v := a.set.Theme
+					sel := components.NativeSelect(c, &v, a.themeOptions())
+					sel.Trigger.Label(t("配色主题", "Color theme"))
+					if sel.Changed() {
+						a.setTheme(v)
+					}
+				},
+			}, {
+				ID: "theme-scope", Title: t("主题范围", "Theme scope"),
+				Description: a.themeScopeDescription(),
+				Keywords:    append([]string{"scope", "write", "global", "范围", "写作", "全局"}, themeKeywords...),
+				Build: func(c *ui.Context) {
+					v := a.themeScope()
+					sel := components.NativeSelect(c, &v, []components.NativeSelectOption[string]{
+						{Value: scopeWrite, Label: t("仅写作页", "Write pages")},
+						{Value: scopeGlobal, Label: t("全局", "Everywhere")},
+					})
+					sel.Trigger.Label(t("主题范围", "Theme scope"))
+					sel.Trigger.Disabled(a.set.Theme == "")
+					if sel.Changed() {
+						a.setThemeScope(v)
 					}
 				},
 			}},

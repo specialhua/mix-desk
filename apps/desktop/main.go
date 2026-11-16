@@ -56,6 +56,10 @@ type app struct {
 	// The writing features (writing.go).
 	writing writing
 
+	// themeUnsupported is set once the page said it lacks what the theme
+	// overrides (themes.go).
+	themeUnsupported bool
+
 	// toasts wait for the main window's next frame (notify).
 	toasts []ui.Toast
 
@@ -168,7 +172,7 @@ func (a *app) openWeb(url string) {
 	web, err := a.win.NewWebView(mygo.WebViewOptions{
 		URL: url,
 		Page: mygo.PageOptions{
-			PreloadScript:  preloadScript(a.srv.Origin(), a.srv.AdminPath(), a.set.Lang),
+			PreloadScript:  preloadScript(a.srv.Origin(), a.srv.AdminPath(), a.set.Lang, a.themeChoice()),
 			TrustedOrigins: []string{a.srv.Origin()},
 			// Keep the page's scripts running while the window is hidden, for
 			// the admin's WebSocket notifications.
@@ -181,6 +185,7 @@ func (a *app) openWeb(url string) {
 	}
 	a.web = web
 	a.loadErr = ""
+	a.themeUnsupported = false
 	a.webReady = false
 	// Should the page never say it is ready (a page that is not the admin,
 	// or an admin the preload script no longer understands), show it anyway.

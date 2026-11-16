@@ -45,17 +45,26 @@ func (b *Bridge) WriteStats(ctx context.Context, stats writeStats) {
 	})
 }
 
+// ThemeUnsupported tells the app that the page lacks the CSS variables the
+// color theme overrides, and shows its own colors (themes.go).
+func (b *Bridge) ThemeUnsupported(ctx context.Context) {
+	b.a.win.Update(b.a.themeUnsupportedNotice)
+}
+
 // pageModes are the modes the preload script styles the page for.
 type pageModes struct {
-	Focus      bool    `json:"focus"`
-	Typewriter bool    `json:"typewriter"`
-	Header     float32 `json:"header"`
+	Focus      bool        `json:"focus"`
+	Typewriter bool        `json:"typewriter"`
+	Header     float32     `json:"header"`
+	Theme      themeChoice `json:"theme"`
 }
 
 // Modes tells a page that just loaded the modes it shows.
 func (b *Bridge) Modes(ctx context.Context) pageModes {
 	ch := make(chan pageModes, 1)
-	b.a.win.Update(func() { ch <- pageModes{b.a.writing.focus, b.a.set.Typewriter, b.a.writing.header} })
+	b.a.win.Update(func() {
+		ch <- pageModes{b.a.writing.focus, b.a.set.Typewriter, b.a.writing.header, b.a.themeChoice()}
+	})
 	select {
 	case m := <-ch:
 		return m
@@ -80,18 +89,24 @@ func (b *Bridge) Modes(ctx context.Context) pageModes {
 //     focus mode
 //     and keeps the caret's line in the middle for typewriter scrolling
 //     (window.__mxDesktopModes, which applyPageModes calls). It reads the
-//     selectors docs/writing-plan.md lists.
+//     selectors docs/writing-plan.md lists;
+//   - recolors the page with the color theme, where its scope says
+//     (themes.go): data-mx-theme on <html>, which the app changes through
+//     window.__mxDesktopTheme.
 //
 // It reads the web admin's storage keys (apps/admin: SIDEBAR_COLLAPSED_STORAGE_KEY,
 // the theme store's "theme-mode", UI_LOCALE_STORAGE_KEY), the ids #app and
 // #initial-loader of its index.html and the aria-label of its two sidebar
 // buttons, which an upstream change may rename.
-func preloadScript(origin, adminPath, lang string) string {
+func preloadScript(origin, adminPath, lang string, theme themeChoice) string {
 	o, _ := json.Marshal(origin)
 	p, _ := json.Marshal(adminPath)
 	l, _ := json.Marshal(lang)
+	th, _ := json.Marshal(theme)
+	css, _ := json.Marshal(themeCSS())
 	timeout := strconv.FormatInt(readyTimeout.Milliseconds(), 10)
-	return strings.NewReplacer("__ORIGIN__", string(o), "__PATH__", string(p), "__LANG__", string(l), "__READY_TIMEOUT__", timeout).Replace(`(() => {
+	return strings.NewReplacer("__ORIGIN__", string(o), "__PATH__", string(p), "__LANG__", string(l),
+		"__READY_TIMEOUT__", timeout, "__THEME__", string(th), "__THEMES__", string(css)).Replace(`(() => {
   // The web admin's page only: not an error page or the API's pages.
   if (location.origin !== __ORIGIN__ || location.pathname.replace(/\/$/, "") !== __PATH__) return;
   try {
@@ -122,6 +137,7 @@ func preloadScript(origin, adminPath, lang string) string {
 
   let last = null;
   const report = () => {
+    applyTheme();
     const route = location.hash.replace(/^#/, "") || "/";
     if (route === last) return;
     last = route;
@@ -174,6 +190,40 @@ func preloadScript(origin, adminPath, lang string) string {
     // The root editor only: callouts and other blocks nest editors of their own.
     "html.mx-desktop-typewriter [data-lexical-editor]:not([data-lexical-editor] [data-lexical-editor]){padding-bottom:50vh!important}",
   ].join("\n"));
+
+  // Color themes (themes.go): the CSS of each, every rule under
+  // html[data-mx-theme], and the one chosen, which the app changes through
+  // __mxDesktopTheme.
+  const THEMES = __THEMES__;
+  let theme = __THEME__;
+  addStyle(Object.values(THEMES).join("\n"));
+  // Whether the page defines the variables the themes override: checked
+  // once a theme is to apply, with none applied, and again after a change.
+  let themeChecked = false, themeOK = false;
+  const THEME_VARS = ["--color-fg", "--color-surface-page", "--color-neutral-500"];
+  const applyTheme = () => {
+    const root = document.documentElement;
+    // The admin's styles are in from DOMContentLoaded.
+    if (!root || document.readyState === "loading") return;
+    const on = !!(theme && THEMES[theme.id]) && (theme.scope === "global" || isWrite());
+    if (on && !themeChecked) {
+      themeChecked = true;
+      root.removeAttribute("data-mx-theme");
+      const style = getComputedStyle(root);
+      themeOK = THEME_VARS.every((name) => style.getPropertyValue(name).trim() !== "");
+      if (!themeOK) call("Bridge.ThemeUnsupported");
+    }
+    if (on && themeOK) {
+      if (root.getAttribute("data-mx-theme") !== theme.id) root.setAttribute("data-mx-theme", theme.id);
+    } else if (root.hasAttribute("data-mx-theme")) {
+      root.removeAttribute("data-mx-theme");
+    }
+  };
+  window.__mxDesktopTheme = (t) => {
+    theme = t;
+    themeChecked = false;
+    applyTheme();
+  };
 
   const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]/g;
   const countWords = (text) => {
@@ -248,7 +298,11 @@ func preloadScript(origin, adminPath, lang string) string {
 
   addEventListener("DOMContentLoaded", () => {
     try {
-      window.mygo && window.mygo.call("Bridge.Modes").then((m) => m && window.__mxDesktopModes(m.focus, m.typewriter, m.header), () => {});
+      window.mygo && window.mygo.call("Bridge.Modes").then((m) => {
+        if (!m) return;
+        window.__mxDesktopModes(m.focus, m.typewriter, m.header);
+        if (m.theme && (m.theme.id !== theme.id || m.theme.scope !== theme.scope)) window.__mxDesktopTheme(m.theme);
+      }, () => {});
     } catch {}
     // The admin's layout fills the window and scrolls inside: a write page
     // scrolled as a whole (the editor bringing the caret into view through
@@ -262,6 +316,7 @@ func preloadScript(origin, adminPath, lang string) string {
     addEventListener("keyup", (e) => { if (typewriter && /^(Arrow|Page|Home|End|Enter)/.test(e.key)) requestAnimationFrame(centerCaret); }, true);
     document.addEventListener("selectionchange", () => { if (typewriter) requestAnimationFrame(centerCaret); });
     scheduleStats();
+    applyTheme();
   });
 })();`)
 }

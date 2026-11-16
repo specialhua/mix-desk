@@ -22,6 +22,10 @@ type settings struct {
 	// Typewriter keeps the line being written in the middle of a write
 	// page (writing.go).
 	Typewriter bool `json:"typewriter,omitempty"`
+	// Theme is the ID of the color theme (themes.go), "" for the app's
+	// own colors; ThemeScope is where it applies, "write" or "global".
+	Theme      string `json:"theme,omitempty"`
+	ThemeScope string `json:"themeScope,omitempty"`
 }
 
 func settingsPath() (string, error) {

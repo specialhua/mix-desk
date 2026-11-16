@@ -81,7 +81,7 @@ func TestNavIcons(t *testing.T) {
 }
 
 func TestPreloadScript(t *testing.T) {
-	s := preloadScript(`https://a.example"`, "/proxy/qaqdmin", "zh-CN")
+	s := preloadScript(`https://a.example"`, "/proxy/qaqdmin", "zh-CN", themeChoice{})
 	if !strings.Contains(s, `location.origin !== "https://a.example\""`) {
 		t.Errorf("origin not quoted as JSON:\n%s", s)
 	}
@@ -392,4 +392,20 @@ func TestReadmeScreenshots(t *testing.T) {
 	shot("settings", a.prefsView, 720, 480, false)
 	a.prefsState.Category = "appearance"
 	shot("settings-dark", a.prefsView, 720, 480, true)
+}
+
+// TestSidebarToolbarTint checks that a global theme's tint, under the
+// sidebar's toolbar, leaves its buttons to the pointer.
+func TestSidebarToolbarTint(t *testing.T) {
+	a := &app{set: settings{Lang: "zh-CN", Theme: "atom", ThemeScope: scopeGlobal}}
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Toolbar(c, func() { a.sidebarToolbar(c) }).FillWidth().Padding(8)
+	}, 260, 48)
+	tt.SetVibrancy(true)
+	if err := tt.Click(a.tr("前往页面或操作", "Go to a page or action") + " (" + shortcutText("K") + ")"); err != nil {
+		t.Fatal(err)
+	}
+	if !a.paletteOpen {
+		t.Error("the search button did not open the palette under the tint")
+	}
 }

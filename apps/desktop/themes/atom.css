@@ -1,0 +1,432 @@
+/*
+ * Atom: One Light and One Dark, after kognise/obsidian-atom.
+ *
+ * The preload script (bridge.go) sets data-mx-theme="atom" on <html> where
+ * the theme applies, and removes it elsewhere; the admin sets .dark on
+ * <html> for the dark appearance. Every rule is under the attribute.
+ *
+ * It overrides the variables the official web admin and its editor read
+ * (themes.go explains why not their code):
+ *   - the admin's tokens (apps/admin/src/styles/tokens.css) and Tailwind's
+ *     neutral scale, which its components also use directly
+ *     (text-neutral-500, dark:bg-neutral-900 and so on);
+ *   - the editor's --rc-host-*: @haklex/rich-editor reads each --rc-* color
+ *     from the --rc-host-* of the page that hosts it.
+ * The html[...] and html.dark[...] selectors outweigh the admin's :root and
+ * .dark.
+ */
+
+/* ---------------------------------------------------------------- Light */
+
+html[data-mx-theme='atom'] {
+  --color-background: #fafafa;
+  --color-surface-page: #f0f0f1;
+  --color-surface-card: #ffffff;
+  --color-surface-inset: #f2f2f3;
+  --color-surface-overlay: #ffffff;
+
+  --color-fg: #383a42;
+  --color-fg-muted: #696c77;
+  --color-fg-subtle: #a0a1a7;
+
+  --color-border: #e5e5e6;
+  --color-border-strong: #d3d4d8;
+
+  --color-accent: #4078f2;
+  --color-accent-hover: #2f66e0;
+  --color-accent-soft: rgb(64 120 242 / 0.1);
+  --color-primary: #4078f2;
+  --color-primary-shallow: #5a8bf5;
+  --color-primary-deep: #2f66e0;
+
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f0f0f1;
+  --color-neutral-200: #e5e5e6;
+  --color-neutral-300: #d3d4d8;
+  --color-neutral-400: #a0a1a7;
+  --color-neutral-500: #80838d;
+  --color-neutral-600: #696c77;
+  --color-neutral-700: #4f525d;
+  --color-neutral-800: #383a42;
+  --color-neutral-900: #2c2e34;
+  --color-neutral-950: #232428;
+
+  --rc-host-text: #383a42;
+  --rc-host-text-secondary: #4f525d;
+  --rc-host-text-tertiary: #696c77;
+  --rc-host-text-quaternary: #a0a1a7;
+  --rc-host-bg: #fafafa;
+  --rc-host-bg-secondary: #f0f0f1;
+  --rc-host-bg-tertiary: #eaeaeb;
+  --rc-host-bg-elevated: #ffffff;
+  --rc-host-fill: rgb(56 58 66 / 0.08);
+  --rc-host-fill-secondary: rgb(56 58 66 / 0.055);
+  --rc-host-fill-tertiary: rgb(56 58 66 / 0.035);
+  --rc-host-fill-quaternary: rgb(56 58 66 / 0.02);
+  --rc-host-border: #dbdbdc;
+  --rc-host-border-subtle: #eaeaeb;
+  --rc-host-ring: rgb(56 58 66 / 0.1);
+  --rc-host-scrim: rgb(0 0 0 / 0.32);
+  --rc-host-accent: #4078f2;
+  --rc-host-accent-light: rgb(64 120 242 / 0.1);
+  --rc-host-link: #4078f2;
+  --rc-host-code-text: #383a42;
+  --rc-host-code-bg: #f0f0f1;
+  --rc-host-code-header-bg: #eaeaeb;
+  --rc-host-hr-border: #dbdbdc;
+  --rc-host-quote-border: rgb(64 120 242 / 0.5);
+  --rc-host-quote-bg: rgb(64 120 242 / 0.04);
+  --rc-host-alert-info: #4078f2;
+  --rc-host-alert-warning: #986801;
+  --rc-host-alert-tip: #50a14f;
+  --rc-host-alert-caution: #e45649;
+  --rc-host-alert-important: #a626a4;
+
+  --mx-atom-selection: rgb(64 120 242 / 0.18);
+  --mx-atom-caret: #526fff;
+}
+
+/* ----------------------------------------------------------------- Dark */
+
+html.dark[data-mx-theme='atom'] {
+  --color-background: #282c34;
+  --color-surface-page: #21252b;
+  --color-surface-card: #2c313a;
+  --color-surface-inset: #1e2227;
+  --color-surface-overlay: #2f343e;
+
+  --color-fg: #dcdfe4;
+  --color-fg-muted: #abb2bf;
+  --color-fg-subtle: #7f848e;
+
+  --color-border: #353b45;
+  --color-border-strong: #424958;
+
+  --color-accent: #4d78cc;
+  --color-accent-hover: #5a86da;
+  --color-accent-soft: rgb(97 175 239 / 0.14);
+  --color-primary: #61afef;
+  --color-primary-shallow: #70bdfc;
+  --color-primary-deep: #4d78cc;
+
+  /* Darkest last, as Tailwind's: dark:bg-neutral-950 sits under the page,
+     dark:text-neutral-50 is the brightest text. */
+  --color-neutral-50: #f0f1f4;
+  --color-neutral-100: #e6e8ec;
+  --color-neutral-200: #dcdfe4;
+  --color-neutral-300: #c8ccd4;
+  --color-neutral-400: #9da5b4;
+  --color-neutral-500: #7f848e;
+  --color-neutral-600: #5c6370;
+  --color-neutral-700: #424958;
+  --color-neutral-800: #353b45;
+  --color-neutral-900: #2c313a;
+  --color-neutral-950: #21252b;
+
+  --rc-host-text: #dcdfe4;
+  --rc-host-text-secondary: #abb2bf;
+  --rc-host-text-tertiary: #7f848e;
+  --rc-host-text-quaternary: #5c6370;
+  --rc-host-bg: #282c34;
+  --rc-host-bg-secondary: #21252b;
+  --rc-host-bg-tertiary: #2c313a;
+  --rc-host-bg-elevated: #2f343e;
+  --rc-host-fill: rgb(171 178 191 / 0.12);
+  --rc-host-fill-secondary: rgb(171 178 191 / 0.08);
+  --rc-host-fill-tertiary: rgb(171 178 191 / 0.05);
+  --rc-host-fill-quaternary: rgb(171 178 191 / 0.03);
+  --rc-host-border: #3e4451;
+  --rc-host-border-subtle: #2f343e;
+  --rc-host-ring: rgb(255 255 255 / 0.08);
+  --rc-host-scrim: rgb(0 0 0 / 0.5);
+  --rc-host-accent: #61afef;
+  --rc-host-accent-light: rgb(97 175 239 / 0.14);
+  --rc-host-link: #61afef;
+  --rc-host-code-text: #abb2bf;
+  --rc-host-code-bg: #21252b;
+  --rc-host-code-header-bg: #1e2227;
+  --rc-host-hr-border: #3e4451;
+  --rc-host-quote-border: rgb(97 175 239 / 0.5);
+  --rc-host-quote-bg: rgb(97 175 239 / 0.05);
+  --rc-host-alert-info: #61afef;
+  --rc-host-alert-warning: #e5c07b;
+  --rc-host-alert-tip: #98c379;
+  --rc-host-alert-caution: #e06c75;
+  --rc-host-alert-important: #c678dd;
+
+  --mx-atom-selection: rgb(97 175 239 / 0.25);
+  --mx-atom-caret: #528bff;
+}
+
+/* ------------------------------------------------- Colors, both modes */
+
+/* Tailwind's color scales, which the admin uses for badges and states
+   (text-red-600, dark:bg-emerald-950/30 and so on), in Atom's hues: 400 is
+   One Dark's, 600 One Light's, a little deeper for small text on white;
+   the steps around mix them with white or black. */
+html[data-mx-theme='atom'] {
+  --color-blue-50: color-mix(in oklab, #61afef 10%, white);
+  --color-blue-100: color-mix(in oklab, #61afef 18%, white);
+  --color-blue-200: color-mix(in oklab, #61afef 35%, white);
+  --color-blue-300: color-mix(in oklab, #61afef 65%, white);
+  --color-blue-400: #61afef;
+  --color-blue-500: color-mix(in oklab, #61afef 50%, #4078f2);
+  --color-blue-600: color-mix(in oklab, #4078f2 88%, black);
+  --color-blue-700: color-mix(in oklab, #4078f2 72%, black);
+  --color-blue-800: color-mix(in oklab, #4078f2 58%, black);
+  --color-blue-900: color-mix(in oklab, #4078f2 45%, black);
+  --color-blue-950: color-mix(in oklab, #4078f2 30%, black);
+  --color-indigo-50: color-mix(in oklab, #61afef 10%, white);
+  --color-indigo-100: color-mix(in oklab, #61afef 18%, white);
+  --color-indigo-200: color-mix(in oklab, #61afef 35%, white);
+  --color-indigo-300: color-mix(in oklab, #61afef 65%, white);
+  --color-indigo-400: #61afef;
+  --color-indigo-500: color-mix(in oklab, #61afef 50%, #4078f2);
+  --color-indigo-600: color-mix(in oklab, #4078f2 88%, black);
+  --color-indigo-700: color-mix(in oklab, #4078f2 72%, black);
+  --color-indigo-800: color-mix(in oklab, #4078f2 58%, black);
+  --color-indigo-900: color-mix(in oklab, #4078f2 45%, black);
+  --color-indigo-950: color-mix(in oklab, #4078f2 30%, black);
+
+  --color-sky-50: color-mix(in oklab, #56b6c2 10%, white);
+  --color-sky-100: color-mix(in oklab, #56b6c2 18%, white);
+  --color-sky-200: color-mix(in oklab, #56b6c2 35%, white);
+  --color-sky-300: color-mix(in oklab, #56b6c2 65%, white);
+  --color-sky-400: #56b6c2;
+  --color-sky-500: color-mix(in oklab, #56b6c2 50%, #0184bc);
+  --color-sky-600: color-mix(in oklab, #0184bc 88%, black);
+  --color-sky-700: color-mix(in oklab, #0184bc 72%, black);
+  --color-sky-800: color-mix(in oklab, #0184bc 58%, black);
+  --color-sky-900: color-mix(in oklab, #0184bc 45%, black);
+  --color-sky-950: color-mix(in oklab, #0184bc 30%, black);
+  --color-cyan-50: color-mix(in oklab, #56b6c2 10%, white);
+  --color-cyan-100: color-mix(in oklab, #56b6c2 18%, white);
+  --color-cyan-200: color-mix(in oklab, #56b6c2 35%, white);
+  --color-cyan-300: color-mix(in oklab, #56b6c2 65%, white);
+  --color-cyan-400: #56b6c2;
+  --color-cyan-500: color-mix(in oklab, #56b6c2 50%, #0184bc);
+  --color-cyan-600: color-mix(in oklab, #0184bc 88%, black);
+  --color-cyan-700: color-mix(in oklab, #0184bc 72%, black);
+  --color-cyan-800: color-mix(in oklab, #0184bc 58%, black);
+  --color-cyan-900: color-mix(in oklab, #0184bc 45%, black);
+  --color-cyan-950: color-mix(in oklab, #0184bc 30%, black);
+
+  --color-red-50: color-mix(in oklab, #e06c75 10%, white);
+  --color-red-100: color-mix(in oklab, #e06c75 18%, white);
+  --color-red-200: color-mix(in oklab, #e06c75 35%, white);
+  --color-red-300: color-mix(in oklab, #e06c75 65%, white);
+  --color-red-400: #e06c75;
+  --color-red-500: color-mix(in oklab, #e06c75 50%, #e45649);
+  --color-red-600: color-mix(in oklab, #e45649 88%, black);
+  --color-red-700: color-mix(in oklab, #e45649 72%, black);
+  --color-red-800: color-mix(in oklab, #e45649 58%, black);
+  --color-red-900: color-mix(in oklab, #e45649 45%, black);
+  --color-red-950: color-mix(in oklab, #e45649 30%, black);
+  --color-rose-50: color-mix(in oklab, #e06c75 10%, white);
+  --color-rose-100: color-mix(in oklab, #e06c75 18%, white);
+  --color-rose-200: color-mix(in oklab, #e06c75 35%, white);
+  --color-rose-300: color-mix(in oklab, #e06c75 65%, white);
+  --color-rose-400: #e06c75;
+  --color-rose-500: color-mix(in oklab, #e06c75 50%, #e45649);
+  --color-rose-600: color-mix(in oklab, #e45649 88%, black);
+  --color-rose-700: color-mix(in oklab, #e45649 72%, black);
+  --color-rose-800: color-mix(in oklab, #e45649 58%, black);
+  --color-rose-900: color-mix(in oklab, #e45649 45%, black);
+  --color-rose-950: color-mix(in oklab, #e45649 30%, black);
+
+  --color-orange-50: color-mix(in oklab, #d19a66 10%, white);
+  --color-orange-100: color-mix(in oklab, #d19a66 18%, white);
+  --color-orange-200: color-mix(in oklab, #d19a66 35%, white);
+  --color-orange-300: color-mix(in oklab, #d19a66 65%, white);
+  --color-orange-400: #d19a66;
+  --color-orange-500: color-mix(in oklab, #d19a66 50%, #986801);
+  --color-orange-600: color-mix(in oklab, #986801 88%, black);
+  --color-orange-700: color-mix(in oklab, #986801 72%, black);
+  --color-orange-800: color-mix(in oklab, #986801 58%, black);
+  --color-orange-900: color-mix(in oklab, #986801 45%, black);
+  --color-orange-950: color-mix(in oklab, #986801 30%, black);
+
+  --color-amber-50: color-mix(in oklab, #e5c07b 10%, white);
+  --color-amber-100: color-mix(in oklab, #e5c07b 18%, white);
+  --color-amber-200: color-mix(in oklab, #e5c07b 35%, white);
+  --color-amber-300: color-mix(in oklab, #e5c07b 65%, white);
+  --color-amber-400: #e5c07b;
+  --color-amber-500: color-mix(in oklab, #e5c07b 50%, #c18401);
+  --color-amber-600: color-mix(in oklab, #c18401 88%, black);
+  --color-amber-700: color-mix(in oklab, #c18401 72%, black);
+  --color-amber-800: color-mix(in oklab, #c18401 58%, black);
+  --color-amber-900: color-mix(in oklab, #c18401 45%, black);
+  --color-amber-950: color-mix(in oklab, #c18401 30%, black);
+  --color-yellow-50: color-mix(in oklab, #e5c07b 10%, white);
+  --color-yellow-100: color-mix(in oklab, #e5c07b 18%, white);
+  --color-yellow-200: color-mix(in oklab, #e5c07b 35%, white);
+  --color-yellow-300: color-mix(in oklab, #e5c07b 65%, white);
+  --color-yellow-400: #e5c07b;
+  --color-yellow-500: color-mix(in oklab, #e5c07b 50%, #c18401);
+  --color-yellow-600: color-mix(in oklab, #c18401 88%, black);
+  --color-yellow-700: color-mix(in oklab, #c18401 72%, black);
+  --color-yellow-800: color-mix(in oklab, #c18401 58%, black);
+  --color-yellow-900: color-mix(in oklab, #c18401 45%, black);
+  --color-yellow-950: color-mix(in oklab, #c18401 30%, black);
+
+  --color-emerald-50: color-mix(in oklab, #98c379 10%, white);
+  --color-emerald-100: color-mix(in oklab, #98c379 18%, white);
+  --color-emerald-200: color-mix(in oklab, #98c379 35%, white);
+  --color-emerald-300: color-mix(in oklab, #98c379 65%, white);
+  --color-emerald-400: #98c379;
+  --color-emerald-500: color-mix(in oklab, #98c379 50%, #50a14f);
+  --color-emerald-600: color-mix(in oklab, #50a14f 88%, black);
+  --color-emerald-700: color-mix(in oklab, #50a14f 72%, black);
+  --color-emerald-800: color-mix(in oklab, #50a14f 58%, black);
+  --color-emerald-900: color-mix(in oklab, #50a14f 45%, black);
+  --color-emerald-950: color-mix(in oklab, #50a14f 30%, black);
+  --color-green-50: color-mix(in oklab, #98c379 10%, white);
+  --color-green-100: color-mix(in oklab, #98c379 18%, white);
+  --color-green-200: color-mix(in oklab, #98c379 35%, white);
+  --color-green-300: color-mix(in oklab, #98c379 65%, white);
+  --color-green-400: #98c379;
+  --color-green-500: color-mix(in oklab, #98c379 50%, #50a14f);
+  --color-green-600: color-mix(in oklab, #50a14f 88%, black);
+  --color-green-700: color-mix(in oklab, #50a14f 72%, black);
+  --color-green-800: color-mix(in oklab, #50a14f 58%, black);
+  --color-green-900: color-mix(in oklab, #50a14f 45%, black);
+  --color-green-950: color-mix(in oklab, #50a14f 30%, black);
+  --color-teal-50: color-mix(in oklab, #98c379 10%, white);
+  --color-teal-100: color-mix(in oklab, #98c379 18%, white);
+  --color-teal-200: color-mix(in oklab, #98c379 35%, white);
+  --color-teal-300: color-mix(in oklab, #98c379 65%, white);
+  --color-teal-400: #98c379;
+  --color-teal-500: color-mix(in oklab, #98c379 50%, #50a14f);
+  --color-teal-600: color-mix(in oklab, #50a14f 88%, black);
+  --color-teal-700: color-mix(in oklab, #50a14f 72%, black);
+  --color-teal-800: color-mix(in oklab, #50a14f 58%, black);
+  --color-teal-900: color-mix(in oklab, #50a14f 45%, black);
+  --color-teal-950: color-mix(in oklab, #50a14f 30%, black);
+
+  --color-purple-50: color-mix(in oklab, #c678dd 10%, white);
+  --color-purple-100: color-mix(in oklab, #c678dd 18%, white);
+  --color-purple-200: color-mix(in oklab, #c678dd 35%, white);
+  --color-purple-300: color-mix(in oklab, #c678dd 65%, white);
+  --color-purple-400: #c678dd;
+  --color-purple-500: color-mix(in oklab, #c678dd 50%, #a626a4);
+  --color-purple-600: color-mix(in oklab, #a626a4 88%, black);
+  --color-purple-700: color-mix(in oklab, #a626a4 72%, black);
+  --color-purple-800: color-mix(in oklab, #a626a4 58%, black);
+  --color-purple-900: color-mix(in oklab, #a626a4 45%, black);
+  --color-purple-950: color-mix(in oklab, #a626a4 30%, black);
+  --color-violet-50: color-mix(in oklab, #c678dd 10%, white);
+  --color-violet-100: color-mix(in oklab, #c678dd 18%, white);
+  --color-violet-200: color-mix(in oklab, #c678dd 35%, white);
+  --color-violet-300: color-mix(in oklab, #c678dd 65%, white);
+  --color-violet-400: #c678dd;
+  --color-violet-500: color-mix(in oklab, #c678dd 50%, #a626a4);
+  --color-violet-600: color-mix(in oklab, #a626a4 88%, black);
+  --color-violet-700: color-mix(in oklab, #a626a4 72%, black);
+  --color-violet-800: color-mix(in oklab, #a626a4 58%, black);
+  --color-violet-900: color-mix(in oklab, #a626a4 45%, black);
+  --color-violet-950: color-mix(in oklab, #a626a4 30%, black);
+  --color-fuchsia-50: color-mix(in oklab, #c678dd 10%, white);
+  --color-fuchsia-100: color-mix(in oklab, #c678dd 18%, white);
+  --color-fuchsia-200: color-mix(in oklab, #c678dd 35%, white);
+  --color-fuchsia-300: color-mix(in oklab, #c678dd 65%, white);
+  --color-fuchsia-400: #c678dd;
+  --color-fuchsia-500: color-mix(in oklab, #c678dd 50%, #a626a4);
+  --color-fuchsia-600: color-mix(in oklab, #a626a4 88%, black);
+  --color-fuchsia-700: color-mix(in oklab, #a626a4 72%, black);
+  --color-fuchsia-800: color-mix(in oklab, #a626a4 58%, black);
+  --color-fuchsia-900: color-mix(in oklab, #a626a4 45%, black);
+  --color-fuchsia-950: color-mix(in oklab, #a626a4 30%, black);
+
+  /* Zinc and stone grays: the neutral scale's. */
+  --color-zinc-50: var(--color-neutral-50);
+  --color-zinc-100: var(--color-neutral-100);
+  --color-zinc-200: var(--color-neutral-200);
+  --color-zinc-300: var(--color-neutral-300);
+  --color-zinc-400: var(--color-neutral-400);
+  --color-zinc-500: var(--color-neutral-500);
+  --color-zinc-600: var(--color-neutral-600);
+  --color-zinc-700: var(--color-neutral-700);
+  --color-zinc-800: var(--color-neutral-800);
+  --color-zinc-900: var(--color-neutral-900);
+  --color-zinc-950: var(--color-neutral-950);
+  --color-stone-50: var(--color-neutral-50);
+  --color-stone-100: var(--color-neutral-100);
+  --color-stone-200: var(--color-neutral-200);
+  --color-stone-300: var(--color-neutral-300);
+  --color-stone-400: var(--color-neutral-400);
+  --color-stone-500: var(--color-neutral-500);
+  --color-stone-600: var(--color-neutral-600);
+  --color-stone-700: var(--color-neutral-700);
+  --color-stone-800: var(--color-neutral-800);
+  --color-stone-900: var(--color-neutral-900);
+  --color-stone-950: var(--color-neutral-950);
+  --color-gray-50: var(--color-neutral-50);
+  --color-gray-100: var(--color-neutral-100);
+  --color-gray-200: var(--color-neutral-200);
+  --color-gray-300: var(--color-neutral-300);
+  --color-gray-400: var(--color-neutral-400);
+  --color-gray-500: var(--color-neutral-500);
+  --color-gray-600: var(--color-neutral-600);
+  --color-gray-700: var(--color-neutral-700);
+  --color-gray-800: var(--color-neutral-800);
+  --color-gray-900: var(--color-neutral-900);
+  --color-gray-950: var(--color-neutral-950);
+  --color-slate-50: var(--color-neutral-50);
+  --color-slate-100: var(--color-neutral-100);
+  --color-slate-200: var(--color-neutral-200);
+  --color-slate-300: var(--color-neutral-300);
+  --color-slate-400: var(--color-neutral-400);
+  --color-slate-500: var(--color-neutral-500);
+  --color-slate-600: var(--color-neutral-600);
+  --color-slate-700: var(--color-neutral-700);
+  --color-slate-800: var(--color-neutral-800);
+  --color-slate-900: var(--color-neutral-900);
+  --color-slate-950: var(--color-neutral-950);
+}
+
+/* ---------------------------------------------------------- Everywhere */
+
+html[data-mx-theme='atom'],
+html[data-mx-theme='atom'] body {
+  background-color: var(--color-surface-page);
+}
+
+html[data-mx-theme='atom'] ::selection {
+  background-color: var(--mx-atom-selection);
+}
+
+/* Code editors (CodeMirror) keep their GitHub syntax colors, on the
+   theme's background. */
+html[data-mx-theme='atom'] .cm-editor,
+html[data-mx-theme='atom'] .cm-editor .cm-gutters {
+  background-color: var(--color-background) !important;
+}
+html[data-mx-theme='atom'] .cm-editor .cm-gutters {
+  border-color: var(--color-border) !important;
+}
+/* The frame around them, whose dark background is GitHub's, written in
+   (apps/admin/src/ui/primitives/code-editor.tsx). */
+html.dark[data-mx-theme='atom'] [class*='dark:bg-[#0d1117]'] {
+  background-color: var(--color-background);
+}
+
+/* Monaco (the template and snippet editors) reads its colors from these
+   variables, which it sets on .monaco-editor. */
+html[data-mx-theme='atom'] .monaco-editor,
+html[data-mx-theme='atom'] .monaco-diff-editor {
+  --vscode-editor-background: var(--color-background);
+  --vscode-editorGutter-background: var(--color-background);
+  --vscode-editorStickyScroll-background: var(--color-background);
+  --vscode-minimap-background: var(--color-background);
+  --vscode-editor-lineHighlightBackground: var(--rc-host-fill-tertiary);
+  --vscode-editor-selectionBackground: var(--mx-atom-selection);
+  --vscode-editorCursor-foreground: var(--mx-atom-caret);
+}
+
+/* ---------------------------------------------------------- Write pages */
+
+/* The editor: Atom's cursor. */
+html[data-mx-theme='atom'] [data-lexical-editor='true'],
+html[data-mx-theme='atom'] .cm-content {
+  caret-color: var(--mx-atom-caret);
+}

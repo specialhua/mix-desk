@@ -57,7 +57,7 @@ func (a *app) beginFrame(c *ui.Context) *ui.Theme {
 			a.shell.SetPage(a.pageView)
 		}
 	}
-	return c.Theme()
+	return a.frameTheme(c)
 }
 
 // pageView builds the pages that replace the sidebar and the web admin.
@@ -180,7 +180,8 @@ func (a *app) sidebarView(c *ui.Context) {
 	// The scroll starts below the shell's header, which holds the window's
 	// buttons and the sidebar toggle: items scroll out of sight at its edge
 	// rather than under them.
-	ui.Column(c).Fill().Padding(sidebar.HeaderHeight(c), 0, 0, 0).Children(func() {
+	// A global theme tints the sidebar's material (themes.go).
+	ui.Column(c).Fill().Padding(sidebar.HeaderHeight(c), 0, 0, 0).Background(a.sidebarTint(c)).Children(func() {
 		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Children(func() {
 			components.Sidebar(c).Padding(0, t.Space(3), t.Space(3), t.Space(3)).Children(func() {
 				for _, s := range navSections {
@@ -223,6 +224,12 @@ func (a *app) sidebarItem(c *ui.Context, it navItem) {
 
 // sidebarToolbar is the bar under the sidebar.
 func (a *app) sidebarToolbar(c *ui.Context) {
+	// The sidebar's tint. An absolute element is placed in its parent's
+	// padding box, which holds the toolbar's padding, and is above its
+	// siblings: under the buttons instead, and letting the pointer through.
+	if tint := a.sidebarTint(c); tint != ui.Transparent {
+		ui.Box(c).Key("tint").Absolute().Left(0).Top(0).Right(0).Bottom(0).ZIndex(-1).PassThrough().Background(tint)
+	}
 	if sidebar.IconButton(c, lucide.Search(), a.tr("前往页面或操作", "Go to a page or action")+" ("+shortcutText("K")+")").Clicked() {
 		a.openPalette()
 	}

@@ -122,10 +122,24 @@ func TestStatusBar(t *testing.T) {
 }
 
 func TestPreloadWriting(t *testing.T) {
-	s := preloadScript("https://a.example", "/proxy/qaqdmin", "zh-CN")
+	s := preloadScript("https://a.example", "/proxy/qaqdmin", "zh-CN", themeChoice{})
 	for _, want := range []string{`"Bridge.WriteStats"`, `"Bridge.Modes"`, "__mxDesktopModes", "mx-desktop-focus", "mx-desktop-typewriter"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the script lacks %s", want)
+		}
+	}
+}
+
+func TestPreloadThemes(t *testing.T) {
+	s := preloadScript("https://a.example", "/proxy/qaqdmin", "zh-CN", themeChoice{"atom", scopeWrite})
+	for _, want := range []string{"__mxDesktopTheme", `"Bridge.ThemeUnsupported"`, `{"id":"atom","scope":"write"}`, `data-mx-theme='atom'`} {
+		if !strings.Contains(s, want) {
+			t.Errorf("the script lacks %s", want)
+		}
+	}
+	for _, th := range colorThemes {
+		if themeCSS()[th.ID] == "" {
+			t.Errorf("theme %s has no CSS", th.ID)
 		}
 	}
 }
