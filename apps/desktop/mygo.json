@@ -2,7 +2,7 @@
   "name": "Mix Space",
   "slug": "mix-space",
   "identifier": "space.mx.desktop",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "out": "build",
   "macos": {
     "icon": "branding/AppIcon.icns"
