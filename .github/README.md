@@ -9,7 +9,7 @@ Mix Space 后台的桌面客户端，基于 [MyGo](https://mygo.run) 和 [Onevra
 优先支持 macOS，Windows 和 Linux 使用同一份代码构建。
 
 <p align="center">
-  <img src="../apps/desktop/docs/screenshots/palette.png" alt="原生侧边栏与 Cmd+K 命令面板" width="720" />
+  <img src="../apps/desktop/docs/screenshots/theme-atom.png" alt="Mix Space Desktop：原生侧边栏、玻璃面包屑和 Atom 深色配色下的仪表盘" width="800" />
 </p>
 
 ## 维护边界：不修改 mx-core 核心代码
@@ -53,6 +53,10 @@ Onevra 的侧边栏外壳：macOS 上有标题栏材质，Windows 上有 Mica。
 
 ### 命令面板 `⌘K`
 
+<p align="center">
+  <img src="../apps/desktop/docs/screenshots/palette.png" alt="原生侧边栏与 Cmd+K 命令面板" width="720" />
+</p>
+
 可以用中文、英文或路径搜到任意后台页面，也能执行刷新、前进后退、切换外观或语言、更换服务器、退出登录等操作。
 
 `⌘K` 不是菜单快捷键，而是视图快捷键：后台编辑器自己绑定了 `⌘K`（插入链接），页面处理过的按键会留给页面。
@@ -66,9 +70,25 @@ Onevra 的侧边栏外壳：macOS 上有标题栏材质，Windows 上有 Mica。
 - **液态玻璃**：写作页上网页铺满窗口，标题栏的面包屑和右下角的设置球都是悬浮的玻璃（MyGo glass 插件，macOS 26 及以上是系统原生 Liquid Glass，能透出下面的正文）。
 - **设置球**：点开后向左展开统计（正文字数，写作时长“本次 4m · 累计 1h 20m”，累计按文章存在本机、只在窗口显示时计时）、专注和打字机两个开关，再点收起。
 
+<p align="center">
+  <img src="../apps/desktop/docs/screenshots/writing-glass.png" alt="写作页：玻璃面包屑、右下角展开的设置球" width="800" />
+</p>
+
+上图是写手记的页面：左上是玻璃面包屑「手记 › 写手记」，网页里重复的返回按钮、标题和草稿状态已经隐藏；右下是展开的设置球，显示字数、本次和累计写作时长，以及专注、打字机两个开关。
+
+<p align="center">
+  <img src="../apps/desktop/docs/screenshots/writing-focus.png" alt="专注模式加打字机滚动" width="800" />
+</p>
+
+打开专注和打字机后：侧边栏和写作页顶栏都收起，正文铺满窗口；面包屑和设置球是悬浮在正文上的玻璃，滚动时下面的文字会从玻璃后面透出来；正在写的那一行停在窗口中间偏上的位置。
+
 ### 想法一瞬 `⌃⌥N`
 
 先记下，以后再整理：在任何应用里按 `⌃⌥N`（默认，可改），会弹出「想法一瞬」面板。面板悬浮在所有窗口之上（类似 Spotlight），不会把当前应用切走。
+
+<p align="center">
+  <img src="../apps/desktop/docs/screenshots/idea-panel.png" alt="想法一瞬面板：记到收集箱，来源选「闪念」，展开了出处和补充" width="560" />
+</p>
 
 - **直接写**：输入或粘贴内容，按 `⌘↵` 记下并收起，`⇧⌘↵` 记下后继续写下一条，`Esc` 收起。没记下的内容会保留。
 - **记到哪**：每次唤起时默认是**收集箱**（未归类），也可以在下拉框里选一个主题，或「＋ 新建主题…」。选了主题后，用 `⇧⌘↵` 连续记录时会一直记到这个主题。主题是长期积累素材的容器，不是文章标题。
@@ -87,6 +107,12 @@ Onevra 的侧边栏外壳：macOS 上有标题栏材质，Windows 上有 Mica。
 侧边栏顶部分成「博客」和「附加」两个选项卡：「博客」是后台的页面，「附加」放桌面端自己的功能。
 
 在「附加 › 想法一瞬」里可以整理素材：
+
+<p align="center">
+  <img src="../apps/desktop/docs/screenshots/ideas-topic.png" alt="想法一瞬整理页：一个主题下的闪念" width="800" />
+</p>
+
+上图是一个主题：顶部是推送状态（推送过几次、之后新增几条），每条闪念标出来源、「新增」「引自 城市与步行」「已编辑 · 原文已保留」，下方是推送按钮。
 - 左边是搜索框、收集箱、时间线和主题。
 - **搜索**：在所有闪念的原文、出处、我的补充和来源里查找，空格分开的几个词要同时出现。点「在主题中查看」会跳到那一条并标出来。
 - **时间线**：所有闪念按记录的日子排列，最近的日子在前，不分主题，用来回看某段时间都在想什么。
@@ -95,7 +121,17 @@ Onevra 的侧边栏外壳：macOS 上有标题栏材质，Windows 上有 Mica。
 - **多选**：在收集箱或主题里勾选几条，一起移到某个主题，或直接推送成草稿。从收集箱推送时要起一个暂定标题，不会为此新建主题。
 - 删除主题时，里面的闪念会移回收集箱，不会被删除。
 
-在主题里点 **推送为手记草稿…** 或 **推送为博文草稿…**（或勾选后推送）时，先显示**预览**：草稿标题、素材说明和每条素材的表格，以及共几条、新增几条、引自别处几条。确认生成后，会依次发生：
+<p align="center">
+  <img src="../apps/desktop/docs/screenshots/ideas-timeline.png" alt="时间线：所有闪念按日子排列" width="800" />
+</p>
+
+在主题里点 **推送为手记草稿…** 或 **推送为博文草稿…**（或勾选后推送）时，先显示**预览**：草稿标题、素材说明和每条素材的表格，以及共几条、新增几条、引自别处几条。
+
+<p align="center">
+  <img src="../apps/desktop/docs/screenshots/ideas-preview.png" alt="推送前的博文草稿预览" width="800" />
+</p>
+
+确认生成后，会依次发生：
 
 1. 在后台页面里调用 `POST /drafts`，以 Lexical 格式创建草稿，因为写作页的 AI 助手只支持 Lexical。
    - 标题用主题名，讨论后再改。
@@ -129,6 +165,8 @@ Onevra 的侧边栏外壳：macOS 上有标题栏材质，Windows 上有 Mica。
 ### 配色主题
 
 可以给后台换一套配色，目前有 **Atom**（One Light / One Dark，参照 [obsidian-atom](https://github.com/kognise/obsidian-atom)）。浅色和深色仍由“外观”决定，主题只决定两者各自的颜色。
+
+本页开头的仪表盘和「写作」里的两张截图都是 Atom 深色、主题范围为「全局」：后台页面、编辑器，以及原生的侧边栏底色都换成了 One Dark 的蓝灰色调。
 
 服务器上跑的通常是官方镜像，桌面端不能改后台代码，所以主题是预加载脚本注入的一份 CSS（`inject/themes/<id>.css`）。它覆盖后台和编辑器读取的 CSS 变量：后台的设计 token、Tailwind 的灰阶和彩色色阶（徽标、状态色换成 Atom 的色相）、编辑器 `@haklex/rich-editor` 留给宿主页面的 `--rc-host-*`，以及代码编辑器（Monaco、CodeMirror）的背景。所有规则都限定在 `<html data-mx-theme="<id>">` 下，属性由预加载脚本按“主题范围”设置：
 
