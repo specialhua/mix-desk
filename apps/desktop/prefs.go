@@ -91,6 +91,14 @@ func (a *app) prefsCategories() []components.SettingsCategory {
 				}),
 			}},
 		}, {
+			ID: "ideas", Title: t("想法一瞬", "Idea Flash"),
+			Items: []components.SettingsItem{{
+				ID: "idea-shortcut", Title: t("想法一瞬快捷键", "Idea Flash shortcut"),
+				Description: t("在任何应用中唤起「想法一瞬」浮窗，记下的内容存在本机。按下没反应时，多半是被系统或其他应用占用了，换一个或自定义。", "Shows the Idea Flash panel from any app; what you jot down stays on this computer. If it does nothing, the system or another app has it: choose another, or your own."),
+				Keywords:    []string{"idea", "flash", "shortcut", "hotkey", "想法", "一瞬", "快捷键"},
+				Build:       a.ideaShortcutSetting,
+			}},
+		}, {
 			ID: "language", Title: t("语言", "Language"),
 			Items: []components.SettingsItem{{
 				ID: "language", Title: t("界面语言", "Language"),

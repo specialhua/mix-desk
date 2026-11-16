@@ -22,11 +22,13 @@ import (
 // it run on the main thread; goroutines change the state through
 // win.Update.
 type app struct {
-	shell *sidebar.Shell
-	win   *mygo.Window
-	web   *mygo.WebView
-	set   settings
-	srv   server
+	// shortcutDraft is the 想法一瞬 shortcut being set in the settings.
+	shortcutDraft shortcutDraft
+	shell         *sidebar.Shell
+	win           *mygo.Window
+	web           *mygo.WebView
+	set           settings
+	srv           server
 
 	// route is the web admin's hash route, as the bridge reported it; ""
 	// until the first page reported one.
@@ -74,6 +76,16 @@ type app struct {
 	// The settings window (prefs.go), nil while closed.
 	prefs      *mygo.Window
 	prefsState components.SettingsState
+
+	// 想法一瞬: the ideas kept on this computer (ideas.go), the panel that
+	// adds to them (idea_panel.go) and the page that lists them
+	// (ideas_view.go); store is nil should it fail to open.
+	store *ideaStore
+	panel ideaPanel
+	ideas ideasPage
+	// extraPage is the page of the sidebar's extras tab shown in place of
+	// the web admin, "" for the web admin.
+	extraPage string
 }
 
 type loginState struct {
@@ -123,6 +135,7 @@ func main() {
 		a.win = a.shell.Window()
 		a.keepInBackground()
 		a.setupWriting()
+		a.setupIdeas()
 		a.buildMenu()
 		if a.set.Server != "" {
 			a.connect(a.set.Server, false)
@@ -271,6 +284,7 @@ func isPublicRoute(route string) bool {
 
 // navigate shows a page of the web admin, as its own sidebar would.
 func (a *app) navigate(path string) {
+	a.extraPage = ""
 	if a.web == nil {
 		return
 	}

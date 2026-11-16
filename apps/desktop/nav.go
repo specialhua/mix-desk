@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/oneo-me/onevra/source/icons/lucide"
 )
 
 // The sidebar is generated from the web admin's routes; after an upstream
@@ -30,6 +31,25 @@ type navItem struct {
 	Title, TitleEN string
 	Icon           string
 	Children       []navItem
+}
+
+// The sidebar's tabs: the web admin's pages, and the app's own features.
+const (
+	sideTabBlog   = 0
+	sideTabExtras = 1
+)
+
+// extraItem is a feature of the app itself, not a page of the web admin,
+// under the sidebar's 附加 (extras) tab. Add one here to list it.
+type extraItem struct {
+	ID             string
+	Title, TitleEN string
+	Icon           func() *ui.SVG
+	Run            func(a *app)
+}
+
+var extraItems = []extraItem{
+	{ID: extraIdeas, Title: "想法一瞬", TitleEN: "Idea Flash", Icon: lucide.Zap, Run: (*app).showIdeasPage},
 }
 
 //go:embed icons/*.svg

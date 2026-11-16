@@ -77,6 +77,8 @@ func (a *app) paletteItems() []command.Item {
 		items = append(items, act("theme:"+th.ID, a.tr("配色：", "Color Theme: ")+a.tr(th.Title, th.TitleEN), lucide.Palette(), "", themeKeywords...))
 	}
 	return append(items,
+		act("idea", a.tr("记一个想法", "Jot Down an Idea"), lucide.Zap(), acceleratorText(a.ideaShortcut()), "idea", "flash", "thought", "note", "想法", "一瞬", "闪念", "记录"),
+		act("ideas", a.tr("想法一瞬", "Idea Flash"), lucide.Zap(), "", "ideas", "draft", "想法", "一瞬", "草稿"),
 		act("focus", a.tr("专注模式", "Focus Mode"), lucide.Maximize2(), focusShortcutText(), "focus", "zen", "fullscreen", "专注", "全屏", "写作"),
 		act("typewriter", a.tr("打字机滚动", "Typewriter Scrolling"), lucide.TextCursorInput(), "", "typewriter", "scroll", "打字机", "写作"),
 		act("reload", a.tr("刷新", "Reload"), lucide.RefreshCw(), shortcutText("R"), "reload", "refresh"),
@@ -112,6 +114,10 @@ func (a *app) runCommand(id string) {
 		return
 	}
 	switch strings.TrimPrefix(id, "act:") {
+	case "idea":
+		a.toggleIdeaPanel("")
+	case "ideas":
+		a.showIdeasPage()
 	case "focus":
 		a.toggleFocus()
 		a.focusWeb()

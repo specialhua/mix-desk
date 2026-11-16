@@ -120,13 +120,18 @@ func (a *app) contentView(c *ui.Context) {
 	// A write page runs under the header and the status bar, which float
 	// over it in Liquid Glass (writing.go); the page keeps the header's
 	// height clear at its top itself. Other pages start below the header.
-	writePage := isWriteRoute(a.route)
+	// A page of the extras tab shows in place of the web admin, whose web
+	// view hides, keeping its page, while no frame builds it.
+	extra := a.extraPage != ""
+	writePage := !extra && isWriteRoute(a.route)
 	col := ui.Column(c).Fill().AlignItems(ui.Stretch)
 	if !writePage {
 		col.Padding(header, 0, 0, 0)
 	}
 	col.Children(func() {
-		if a.web != nil {
+		if extra {
+			a.extraView(c)
+		} else if a.web != nil {
 			a.webView(c).Grow(1).MinWidth(0)
 		} else {
 			ui.Box(c).Grow(1) // tests draw the view without a web view
@@ -151,6 +156,14 @@ func (a *app) contentView(c *ui.Context) {
 // sidebar items down to the chosen one, whose ancestors go back up.
 func (a *app) contentTitle(c *ui.Context) {
 	ui.Row(c).Fill().AlignItems(ui.Center).Children(func() {
+		if it := a.extraItem(); it != nil {
+			glassCapsule(c).Padding(0, 14).Children(func() {
+				titles := []string{a.tr("附加", "Extras"), a.tr(it.Title, it.TitleEN)}
+				chosen := 1
+				components.Breadcrumbs(c, titles, &chosen)
+			})
+			return
+		}
 		if len(navTrail(a.nav)) > 0 {
 			glassCapsule(c).Padding(0, 14).Children(func() { a.breadcrumbs(c) })
 		}
@@ -186,8 +199,23 @@ func (a *app) sidebarView(c *ui.Context) {
 	// rather than under them.
 	// A global theme tints the sidebar's material (themes.go).
 	ui.Column(c).Fill().Padding(sidebar.HeaderHeight(c), 0, 0, 0).Background(a.sidebarTint(c)).Children(func() {
+		tab := a.set.SidebarTab
+		if tab != sideTabExtras {
+			tab = sideTabBlog
+		}
+		ui.Row(c).FillWidth().Padding(0, t.Space(3), t.Space(2), t.Space(3)).Children(func() {
+			tabs := components.Tabs(c, &tab, components.TabsSegmented, a.tr("博客", "Blog"), a.tr("附加", "Extras"))
+			if tabs.List.Changed() {
+				a.set.SidebarTab = tab
+				_ = a.set.save()
+			}
+		})
 		ui.Scroll(c).FillWidth().Grow(1).MinHeight(0).Children(func() {
 			components.Sidebar(c).Padding(0, t.Space(3), t.Space(3), t.Space(3)).Children(func() {
+				if tab == sideTabExtras {
+					a.extrasView(c)
+					return
+				}
 				for _, s := range navSections {
 					items := func() {
 						for _, it := range s.Items {
@@ -205,11 +233,49 @@ func (a *app) sidebarView(c *ui.Context) {
 	})
 }
 
+// extrasView is the sidebar's 附加 (extras) tab: the app's own features,
+// which run when clicked rather than show a page of the web admin.
+func (a *app) extrasView(c *ui.Context) {
+	t := c.Theme()
+	ui.Column(c).FillWidth().MinWidth(0).Gap(t.Space(1)).Children(func() {
+		for _, it := range extraItems {
+			if components.SidebarItem(c, a.tr(it.Title, it.TitleEN), it.Icon(), a.extraPage == it.ID).Key("extra:" + it.ID).Clicked() {
+				it.Run(a)
+			}
+			if it.ID == extraIdeas {
+				// The shortcut that adds to it, from any app.
+				if acc := a.ideaShortcut(); acc != "" {
+					ui.Text(c, a.tr("随时记下：", "Jot down anytime: ")+acceleratorText(acc)).
+						FontSize(11).TextColor(t.TextMuted).Padding(0, 0, t.Space(1), 34)
+				}
+			}
+		}
+	})
+}
+
+// extraItem is the item of the extras page shown, or nil.
+func (a *app) extraItem() *extraItem {
+	for k := range extraItems {
+		if extraItems[k].ID == a.extraPage {
+			return &extraItems[k]
+		}
+	}
+	return nil
+}
+
+// extraView is the page of the extras tab shown.
+func (a *app) extraView(c *ui.Context) {
+	switch a.extraPage {
+	case extraIdeas:
+		a.ideasView(c)
+	}
+}
+
 // sidebarItem shows an item and, while it or one of them is chosen, its
 // children, as the web sidebar expands the active branch.
 func (a *app) sidebarItem(c *ui.Context, it navItem) {
-	e := components.SidebarItem(c, a.tr(it.Title, it.TitleEN), navIcon(it.Icon), a.nav == it.Path).Key(it.Path)
-	if e.Clicked() && a.nav != it.Path {
+	e := components.SidebarItem(c, a.tr(it.Title, it.TitleEN), navIcon(it.Icon), a.extraPage == "" && a.nav == it.Path).Key(it.Path)
+	if e.Clicked() && (a.nav != it.Path || a.extraPage != "") {
 		a.nav = it.Path
 		a.navigate(it.Path)
 	}

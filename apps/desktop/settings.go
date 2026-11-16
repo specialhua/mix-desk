@@ -26,6 +26,12 @@ type settings struct {
 	// own colors; ThemeScope is where it applies, "write" or "global".
 	Theme      string `json:"theme,omitempty"`
 	ThemeScope string `json:"themeScope,omitempty"`
+	// IdeaShortcut is the global shortcut of the 想法一瞬 panel
+	// (idea_panel.go): "" for the default, "off" for none.
+	IdeaShortcut string `json:"ideaShortcut,omitempty"`
+	// SidebarTab is the sidebar's tab: 0 the blog (the web admin's pages),
+	// 1 the extras (the app's own features).
+	SidebarTab int `json:"sidebarTab,omitempty"`
 }
 
 func settingsPath() (string, error) {

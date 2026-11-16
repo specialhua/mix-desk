@@ -313,6 +313,55 @@
     if (typewriter) requestAnimationFrame(centerCaret)
   }
 
+  // The AI assistant of the write page (ideas_draft.go): open it and fill
+  // in the prompt, without sending it. Waits for the draft whose text
+  // includes `expect` to show in the editor; resolves to "ok", "disabled"
+  // (not a Lexical draft) or "timeout".
+  const AI_BUTTON = [
+    'button[aria-label="AI 助手"]',
+    'button[aria-label="AI assistant"]',
+    'button[aria-label="隐藏 AI 助手"]',
+    'button[aria-label="Hide AI assistant"]',
+  ].join(',')
+  const AI_INPUT = [
+    'textarea[placeholder="输入修改要求"]',
+    'textarea[placeholder="Describe what to change"]',
+  ].join(',')
+  window.__mxDesktopAiPrompt = (text, timeout, expect) =>
+    new Promise((resolve) => {
+      const deadline = Date.now() + (timeout || 20000)
+      let clicked = false
+      const step = () => {
+        if (Date.now() > deadline) return resolve('timeout')
+        const editor = isWrite() && document.querySelector(EDITOR)
+        const loaded =
+          editor &&
+          editor.matches('[data-lexical-editor="true"]') &&
+          (!expect || (editor.textContent || '').includes(expect))
+        const button = loaded && document.querySelector(AI_BUTTON)
+        if (!button) return setTimeout(step, 200)
+        if (button.disabled) return resolve('disabled')
+        // Click once: a second click would close the panel.
+        if (button.getAttribute('aria-pressed') !== 'true' && !clicked) {
+          clicked = true
+          button.click()
+        }
+        const input = document.querySelector(AI_INPUT)
+        if (!input) return setTimeout(step, 200)
+        const set = Object.getOwnPropertyDescriptor(
+          HTMLTextAreaElement.prototype,
+          'value',
+        ).set
+        set.call(input, text)
+        // React's onChange of a textarea listens to input events. No Enter,
+        // no click on Send: the user sends it.
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.focus()
+        resolve('ok')
+      }
+      step()
+    })
+
   addEventListener('DOMContentLoaded', () => {
     try {
       window.mygo?.call('Bridge.Modes').then(
