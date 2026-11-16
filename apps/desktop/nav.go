@@ -101,3 +101,21 @@ func navTrail(path string) []navItem {
 	}
 	return nil
 }
+
+// navPaths returns the path of every sidebar item: the pages whose title
+// the native header shows (contentTitle), which the preload script hides
+// from the page itself.
+func navPaths() []string {
+	var paths []string
+	var walk func(items []navItem)
+	walk = func(items []navItem) {
+		for _, it := range items {
+			paths = append(paths, it.Path)
+			walk(it.Children)
+		}
+	}
+	for _, s := range navSections {
+		walk(s.Items)
+	}
+	return paths
+}

@@ -1,0 +1,78 @@
+/*
+ * The desktop app's changes to the web admin's own UI, which the preload
+ * script (preload.js) adds to its page. Each rule reads the admin's DOM;
+ * README.md lists what it depends on, and an upstream change may need
+ * these selectors adapted here, never the admin changed.
+ */
+
+/* The admin's sidebar is collapsed and replaced by the native one: hide the
+ * buttons that would bring it back (MobileHamburger, DesktopSidebarHamburger,
+ * by their aria-label). */
+:is(button[aria-label="展开侧边栏"], button[aria-label="Expand sidebar"],
+    button[aria-label="打开导航"], button[aria-label="Open navigation"]) {
+  display: none !important;
+}
+
+/*
+ * Page titles. On the pages the native header names (html.mx-desktop-titled,
+ * set by preload.js for the sidebar's pages), the page's title is the glass
+ * breadcrumb's, its count beside it: the page's own title block goes, and
+ * its header keeps the rest, at the right.
+ *
+ * The title block is the one with the sidebar buttons above in it, which
+ * every page header of the admin has (MobileHeaderAffordance, or the two
+ * buttons in PageHeader), and a heading.
+ */
+html.mx-desktop-titled
+  :has(> :is(button[aria-label="展开侧边栏"], button[aria-label="Expand sidebar"],
+             button[aria-label="打开导航"], button[aria-label="Open navigation"])):has(h1, h2) {
+  display: none !important;
+}
+/* Its row: the block's parent (:has() cannot nest, so by the buttons two
+ * levels down). */
+html.mx-desktop-titled
+  :has(> * > :is(button[aria-label="展开侧边栏"], button[aria-label="Expand sidebar"],
+                    button[aria-label="打开导航"], button[aria-label="Open navigation"])):has(> * :is(h1, h2)) {
+  justify-content: flex-end !important;
+}
+/* A header row left with nothing goes too; PageHeaderBar's summary line
+ * below it stays. */
+html.mx-desktop-titled
+  :has(> * > :is(button[aria-label="展开侧边栏"], button[aria-label="Expand sidebar"],
+                    button[aria-label="打开导航"], button[aria-label="Open navigation"])):has(> * :is(h1, h2)):not(:has(> :nth-child(2))) {
+  display: none !important;
+}
+/* And PageHeaderBar's header around such a row, without a summary line,
+ * whose border would stay as a line. */
+html.mx-desktop-titled
+  header:has(> * > * > :is(button[aria-label="展开侧边栏"], button[aria-label="Expand sidebar"],
+                    button[aria-label="打开导航"], button[aria-label="Open navigation"])):has(h1, h2):not(:has(> :nth-child(2))):not(:has(> * > :nth-child(2))) {
+  display: none !important;
+}
+
+/*
+ * The write pages (docs/writing-plan.md): form:has(editor) > section, whose
+ * first child is the top bar, and that bar's first child its back button,
+ * title and draft status.
+ */
+/* The app's header floats over the top of a write page: keep it clear. */
+form:has([data-lexical-editor], .cm-content) > section {
+  padding-top: var(--mx-desktop-header, 0px) !important;
+}
+/* Back, title and draft status: the breadcrumbs and the editor's own status
+ * line say them. The actions stay, at the right. */
+html.mx-desktop-titled form:has([data-lexical-editor], .cm-content) > section > div:first-child > div:first-child {
+  display: none !important;
+}
+html.mx-desktop-titled form:has([data-lexical-editor], .cm-content) > section > div:first-child {
+  justify-content: flex-end !important;
+}
+/* Focus mode hides the top bar. */
+html.mx-desktop-focus form:has([data-lexical-editor]) > section > div:first-child {
+  display: none !important;
+}
+/* Typewriter scrolling: room below the last line, in the root editor only;
+ * callouts and other blocks nest editors of their own. */
+html.mx-desktop-typewriter [data-lexical-editor]:not([data-lexical-editor] [data-lexical-editor]) {
+  padding-bottom: 50vh !important;
+}

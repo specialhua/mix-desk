@@ -33,6 +33,10 @@ type app struct {
 	route string
 	// nav is the sidebar item chosen: the path of the item route is under.
 	nav string
+	// headerCount is the count beside the page's title, as "10" beside
+	// 草稿箱, which the breadcrumbs show in its place (Bridge.HeaderCount);
+	// "" for none.
+	headerCount string
 
 	// page is the page the shell shows (pageKind), as last set.
 	page string
@@ -47,7 +51,7 @@ type app struct {
 	// loadErr is why the web admin's page failed to load, e.g. offline.
 	loadErr string
 	// webReady is set once the web admin's page has drawn something to
-	// show (bridge.go); until then a native spinner covers the web view,
+	// show (inject.go); until then a native spinner covers the web view,
 	// which is blank or shows the admin's own loading screens.
 	webReady bool
 	// handingOff is set while the web view loads /device/web-handoff.
@@ -235,6 +239,9 @@ func (a *app) routeChanged(route string) {
 	prev := a.route
 	a.route = route
 	a.nav = activeNavPath(route)
+	if route != prev {
+		a.headerCount = ""
+	}
 	a.writeRouteChanged(prev, route)
 	if strings.HasPrefix(route, "/login") {
 		// Signed out, or the session expired: try the Keychain's token once.

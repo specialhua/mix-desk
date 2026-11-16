@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -88,11 +90,37 @@ func TestPreloadScript(t *testing.T) {
 	if !strings.Contains(s, `!== "/proxy/qaqdmin"`) {
 		t.Error("the script does not check the admin's path")
 	}
-	if !strings.Contains(s, `"Bridge.Route"`) {
+	if !strings.Contains(s, `'Bridge.Route'`) {
 		t.Error("the script does not report routes")
 	}
-	if !strings.Contains(s, `"Bridge.Ready"`) || strings.Contains(s, "__READY_TIMEOUT__") {
+	if !strings.Contains(s, `'Bridge.Ready'`) || strings.Contains(s, "__READY_TIMEOUT__") {
 		t.Error("the script does not report when the page is ready")
+	}
+}
+
+// The pages the native header names hide their own title, by the same
+// sidebar paths the header's breadcrumbs come from.
+func TestPreloadTitled(t *testing.T) {
+	s := preloadScript("https://a.example", "/proxy/qaqdmin", "zh-CN", themeChoice{})
+	if m := regexp.MustCompile(`__[A-Z_]+__`).FindString(s); m != "" {
+		t.Fatalf("the script keeps the placeholder %s", m)
+	}
+	for _, want := range []string{"mx-desktop-titled", `'Bridge.HeaderCount'`, `aria-label=\"展开侧边栏\"`} {
+		if !strings.Contains(s, want) {
+			t.Errorf("the script lacks %s", want)
+		}
+	}
+	paths := navPaths()
+	for _, p := range []string{"/drafts", "/notes/edit", "/posts"} {
+		if !slices.Contains(paths, p) {
+			t.Errorf("navPaths lacks %s: %v", p, paths)
+		}
+		if !strings.Contains(s, `"`+p+`"`) {
+			t.Errorf("the script lacks %s", p)
+		}
+		if len(navTrail(p)) == 0 {
+			t.Errorf("the header names no trail for %s", p)
+		}
 	}
 }
 
@@ -250,6 +278,12 @@ func TestScreens(t *testing.T) {
 	if !tt.HasText("博文") || !tt.HasText("写博文") {
 		t.Errorf("title: %q", tt.Texts())
 	}
+	a.headerCount = "42"
+	tt = ui.NewTester(a.contentTitle, 600, 48)
+	if !tt.HasText("42") {
+		t.Errorf("title without the page's count: %q", tt.Texts())
+	}
+	a.headerCount = ""
 
 	a.page = pageMain
 	a.openPalette()

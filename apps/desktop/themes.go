@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"encoding/json"
 	"fmt"
 
@@ -14,9 +13,9 @@ import (
 // of each.
 //
 // The web admin is the server's, the official build on most servers, so a
-// theme cannot change its code: themes/<id>.css overrides the CSS variables
+// theme cannot change its code: inject/themes/<id>.css overrides the CSS variables
 // it and its editor read, under html[data-mx-theme="<id>"], which the
-// preload script sets (bridge.go). Its rules for the write pages are tuned
+// preload script sets (inject.go). Its rules for the write pages are tuned
 // to them; elsewhere they recolor what follows the variables, which an
 // upstream change may rename. ThemeScope chooses where the theme applies:
 //
@@ -29,9 +28,6 @@ import (
 // so (Bridge.ThemeUnsupported), and the native UI goes back to its colors.
 //
 // A theme is an entry of colorThemes and its CSS file.
-
-//go:embed themes/*.css
-var themeFiles embed.FS
 
 // Theme scopes.
 const (
@@ -115,7 +111,7 @@ func findColorTheme(id string) *colorTheme {
 func themeCSS() map[string]string {
 	css := make(map[string]string, len(colorThemes))
 	for _, th := range colorThemes {
-		b, err := themeFiles.ReadFile("themes/" + th.ID + ".css")
+		b, err := injectFiles.ReadFile("inject/themes/" + th.ID + ".css")
 		if err != nil {
 			panic(fmt.Sprintf("theme %s: %v", th.ID, err))
 		}

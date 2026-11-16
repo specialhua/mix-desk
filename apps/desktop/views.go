@@ -172,6 +172,10 @@ func (a *app) breadcrumbs(c *ui.Context) {
 		a.nav = trail[chosen].Path
 		a.navigate(trail[chosen].Path)
 	}
+	if a.headerCount != "" {
+		ui.Text(c, a.headerCount).Key("header-count").Padding(0, 0, 0, 8).
+			FontSize(c.Theme().FontSize * 0.85).TextColor(c.Theme().TextMuted)
+	}
 }
 
 // sidebarView is the shell's sidebar: the web admin's pages.

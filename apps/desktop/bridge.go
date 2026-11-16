@@ -2,9 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -45,6 +42,26 @@ func (b *Bridge) WriteStats(ctx context.Context, stats writeStats) {
 	})
 }
 
+// headerCount is the count beside the title of the page at route.
+type headerCount struct {
+	Route string `json:"route"`
+	Count string `json:"count"`
+}
+
+// HeaderCount tells the app the count beside the title of a page the native
+// header names, which the page hides with its title: the breadcrumbs show
+// it. One for a page the user has since left is dropped.
+func (b *Bridge) HeaderCount(ctx context.Context, h headerCount) {
+	if len(h.Count) > 16 {
+		return
+	}
+	b.a.win.Update(func() {
+		if h.Route == b.a.route {
+			b.a.headerCount = h.Count
+		}
+	})
+}
+
 // ThemeUnsupported tells the app that the page lacks the CSS variables the
 // color theme overrides, and shows its own colors (themes.go).
 func (b *Bridge) ThemeUnsupported(ctx context.Context) {
@@ -71,252 +88,4 @@ func (b *Bridge) Modes(ctx context.Context) pageModes {
 	case <-ctx.Done():
 		return pageModes{}
 	}
-}
-
-// preloadScript runs before the web admin's own scripts, on its page. It
-//   - collapses the web admin's sidebar, which the native one replaces, and
-//     hides the buttons that would bring it back;
-//   - lets the theme follow the app (prefers-color-scheme follows
-//     mygo.Theme) and sets the locale the app uses;
-//   - reports the hash route: React Router's HashRouter changes it with
-//     history.pushState, which fires no hashchange;
-//   - reports when the page is ready to show (Bridge.Ready): React has
-//     replaced the #initial-loader in #app, and on a page that needs a
-//     session, one of the two sidebar buttons is there, which only the
-//     admin's page layout draws (past its session check and the page's
-//     lazy loading); or after readyTimeout, should neither come;
-//   - on the write pages, reports the word count (Bridge.WriteStats), styles
-//     focus mode
-//     and keeps the caret's line in the middle for typewriter scrolling
-//     (window.__mxDesktopModes, which applyPageModes calls). It reads the
-//     selectors docs/writing-plan.md lists;
-//   - recolors the page with the color theme, where its scope says
-//     (themes.go): data-mx-theme on <html>, which the app changes through
-//     window.__mxDesktopTheme.
-//
-// It reads the web admin's storage keys (apps/admin: SIDEBAR_COLLAPSED_STORAGE_KEY,
-// the theme store's "theme-mode", UI_LOCALE_STORAGE_KEY), the ids #app and
-// #initial-loader of its index.html and the aria-label of its two sidebar
-// buttons, which an upstream change may rename.
-func preloadScript(origin, adminPath, lang string, theme themeChoice) string {
-	o, _ := json.Marshal(origin)
-	p, _ := json.Marshal(adminPath)
-	l, _ := json.Marshal(lang)
-	th, _ := json.Marshal(theme)
-	css, _ := json.Marshal(themeCSS())
-	timeout := strconv.FormatInt(readyTimeout.Milliseconds(), 10)
-	return strings.NewReplacer("__ORIGIN__", string(o), "__PATH__", string(p), "__LANG__", string(l),
-		"__READY_TIMEOUT__", timeout, "__THEME__", string(th), "__THEMES__", string(css)).Replace(`(() => {
-  // The web admin's page only: not an error page or the API's pages.
-  if (location.origin !== __ORIGIN__ || location.pathname.replace(/\/$/, "") !== __PATH__) return;
-  try {
-    localStorage.setItem("admin:sidebar-collapsed", "true");
-    localStorage.removeItem("theme-mode");
-    localStorage.setItem("mx-admin-ui-locale", __LANG__);
-  } catch {}
-  const sidebarButtons = [
-    'button[aria-label="展开侧边栏"]', 'button[aria-label="Expand sidebar"]',
-    'button[aria-label="打开导航"]', 'button[aria-label="Open navigation"]',
-  ].join(",");
-  // The script runs as the document is created: WebView2 (Windows) runs it
-  // before there is an <html> element to add to, which WKWebView has.
-  const addStyle = (css) => {
-    const style = document.createElement("style");
-    style.textContent = css;
-    const put = () => (document.head || document.documentElement).appendChild(style);
-    if (document.documentElement) return put();
-    const wait = new MutationObserver(() => {
-      if (document.documentElement) { wait.disconnect(); put(); }
-    });
-    wait.observe(document, {childList: true});
-  };
-  addStyle(sidebarButtons + "{display:none!important}");
-  const call = (name, arg) => {
-    try { window.mygo && window.mygo.call(name, arg); } catch {}
-  };
-
-  let last = null;
-  const report = () => {
-    applyTheme();
-    const route = location.hash.replace(/^#/, "") || "/";
-    if (route === last) return;
-    last = route;
-    call("Bridge.Route", route);
-  };
-  for (const name of ["pushState", "replaceState"]) {
-    const original = history[name];
-    history[name] = function (...args) {
-      const result = original.apply(this, args);
-      queueMicrotask(report);
-      return result;
-    };
-  }
-  addEventListener("hashchange", report);
-  addEventListener("popstate", report);
-  addEventListener("DOMContentLoaded", report);
-
-  // As isPublicRoute in views.go: the pages shown without a session.
-  const isPublic = (route) => /^\/(login|setup|collab)(?=$|[/?])/.test(route);
-  let ready = false, observer = null;
-  const markReady = () => {
-    if (ready) return;
-    ready = true;
-    if (observer) observer.disconnect();
-    // Once the frame with it has painted.
-    requestAnimationFrame(() => requestAnimationFrame(() => call("Bridge.Ready", true)));
-  };
-  const checkReady = () => {
-    const app = document.getElementById("app");
-    if (!app || !app.firstElementChild || document.getElementById("initial-loader")) return;
-    const route = location.hash.replace(/^#/, "") || "/";
-    if (isPublic(route) || document.querySelector(sidebarButtons)) markReady();
-  };
-  addEventListener("DOMContentLoaded", () => {
-    call("Bridge.Ready", false);
-    observer = new MutationObserver(checkReady);
-    observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true, attributeFilter: ["aria-label"]});
-    checkReady();
-    setTimeout(markReady, __READY_TIMEOUT__);
-  });
-
-  // The write pages (writing.go).
-  const isWrite = () => /^\/(posts|notes|pages)\/edit(?=$|[?])/.test(location.hash.replace(/^#/, ""));
-  // The root editor, not one nested in a block such as a callout.
-  const EDITOR = '[data-lexical-editor="true"]:not([data-lexical-editor] [data-lexical-editor]), .cm-content';
-  addStyle([
-    // The app's header floats over the top of a write page: keep it clear.
-    "form:has([data-lexical-editor], .cm-content) > section{padding-top:var(--mx-desktop-header,0px)!important}",
-    "html.mx-desktop-focus form:has([data-lexical-editor]) > section > div:first-child{display:none!important}",
-    // The root editor only: callouts and other blocks nest editors of their own.
-    "html.mx-desktop-typewriter [data-lexical-editor]:not([data-lexical-editor] [data-lexical-editor]){padding-bottom:50vh!important}",
-  ].join("\n"));
-
-  // Color themes (themes.go): the CSS of each, every rule under
-  // html[data-mx-theme], and the one chosen, which the app changes through
-  // __mxDesktopTheme.
-  const THEMES = __THEMES__;
-  let theme = __THEME__;
-  addStyle(Object.values(THEMES).join("\n"));
-  // Whether the page defines the variables the themes override: checked
-  // once a theme is to apply, with none applied, and again after a change.
-  let themeChecked = false, themeOK = false;
-  const THEME_VARS = ["--color-fg", "--color-surface-page", "--color-neutral-500"];
-  const applyTheme = () => {
-    const root = document.documentElement;
-    // The admin's styles are in from DOMContentLoaded.
-    if (!root || document.readyState === "loading") return;
-    const on = !!(theme && THEMES[theme.id]) && (theme.scope === "global" || isWrite());
-    if (on && !themeChecked) {
-      themeChecked = true;
-      root.removeAttribute("data-mx-theme");
-      const style = getComputedStyle(root);
-      themeOK = THEME_VARS.every((name) => style.getPropertyValue(name).trim() !== "");
-      if (!themeOK) call("Bridge.ThemeUnsupported");
-    }
-    if (on && themeOK) {
-      if (root.getAttribute("data-mx-theme") !== theme.id) root.setAttribute("data-mx-theme", theme.id);
-    } else if (root.hasAttribute("data-mx-theme")) {
-      root.removeAttribute("data-mx-theme");
-    }
-  };
-  window.__mxDesktopTheme = (t) => {
-    theme = t;
-    themeChecked = false;
-    applyTheme();
-  };
-
-  const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]/g;
-  const countWords = (text) => {
-    const cjk = (text.match(CJK) || []).length;
-    const words = (text.replace(CJK, " ").match(/[\p{L}\p{N}]+(?:['’.\-][\p{L}\p{N}]+)*/gu) || []).length;
-    return cjk + words;
-  };
-  let lastStats = "", statsTimer = 0;
-  const reportStats = () => {
-    statsTimer = 0;
-    if (!isWrite()) { lastStats = ""; return; }
-    const editor = document.querySelector(EDITOR);
-    const stats = {words: editor ? countWords(editor.innerText || "") : 0};
-    const key = JSON.stringify(stats);
-    if (key === lastStats) return;
-    lastStats = key;
-    call("Bridge.WriteStats", stats);
-  };
-  const scheduleStats = () => {
-    if (!isWrite()) { lastStats = ""; return; }
-    if (!statsTimer) statsTimer = setTimeout(reportStats, 400);
-  };
-
-  const typed = (e) => {
-    if (typewriter && isWrite() && e.target instanceof Element && e.target.closest(EDITOR)) requestAnimationFrame(centerCaret);
-  };
-
-  // Typewriter scrolling: the caret's line a little above the middle of
-  // the editor's scroll area, leaving room below it for the editor's menus
-  // (the slash menu flips above the caret, under the toolbar, without it).
-  const TYPEWRITER_LINE = 0.4;
-  let typewriter = false;
-  // The scroll area around the editor; never the document, which the
-  // admin's layout keeps still.
-  const scroller = (el) => {
-    for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
-      if (/(auto|scroll)/.test(getComputedStyle(n).overflowY) && n.scrollHeight > n.clientHeight) return n;
-    }
-    return null;
-  };
-  const caretRect = (range) => {
-    const rects = range.getClientRects();
-    if (rects.length) return rects[rects.length - 1];
-    const r = range.getBoundingClientRect();
-    if (r.height) return r;
-    const node = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
-    return node ? node.getBoundingClientRect() : null;
-  };
-  const centerCaret = () => {
-    if (!typewriter || !isWrite()) return;
-    const sel = getSelection();
-    if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
-    const range = sel.getRangeAt(0);
-    const node = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
-    const editor = node && node.closest('[data-lexical-editor="true"]');
-    if (!editor) return;
-    const rect = caretRect(range);
-    const box = scroller(editor);
-    if (!rect || !box) return;
-    const delta = rect.top + rect.height / 2 - (box.getBoundingClientRect().top + box.clientHeight * TYPEWRITER_LINE);
-    if (Math.abs(delta) > 2) box.scrollBy({top: delta});
-  };
-
-  window.__mxDesktopModes = (focus, tw, header) => {
-    if (header) document.documentElement.style.setProperty("--mx-desktop-header", header + "px");
-    const c = document.documentElement.classList;
-    c.toggle("mx-desktop-focus", !!focus);
-    c.toggle("mx-desktop-typewriter", !!tw);
-    typewriter = !!tw;
-    if (typewriter) requestAnimationFrame(centerCaret);
-  };
-
-  addEventListener("DOMContentLoaded", () => {
-    try {
-      window.mygo && window.mygo.call("Bridge.Modes").then((m) => {
-        if (!m) return;
-        window.__mxDesktopModes(m.focus, m.typewriter, m.header);
-        if (m.theme && (m.theme.id !== theme.id || m.theme.scope !== theme.scope)) window.__mxDesktopTheme(m.theme);
-      }, () => {});
-    } catch {}
-    // The admin's layout fills the window and scrolls inside: a write page
-    // scrolled as a whole (the editor bringing the caret into view through
-    // every ancestor) shows a strip of nothing at the bottom. Keep it still.
-    addEventListener("scroll", (e) => {
-      const doc = document.scrollingElement;
-      if (e.target === document && isWrite() && doc && doc.scrollTop) doc.scrollTop = 0;
-    }, true);
-    new MutationObserver(scheduleStats).observe(document.documentElement, {childList: true, subtree: true, characterData: true});
-    addEventListener("input", typed, true);
-    addEventListener("keyup", (e) => { if (typewriter && /^(Arrow|Page|Home|End|Enter)/.test(e.key)) requestAnimationFrame(centerCaret); }, true);
-    document.addEventListener("selectionchange", () => { if (typewriter) requestAnimationFrame(centerCaret); });
-    scheduleStats();
-    applyTheme();
-  });
-})();`)
 }

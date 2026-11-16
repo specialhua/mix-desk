@@ -1,7 +1,7 @@
 /*
  * Atom: One Light and One Dark, after kognise/obsidian-atom.
  *
- * The preload script (bridge.go) sets data-mx-theme="atom" on <html> where
+ * The preload script (inject/preload.js) sets data-mx-theme="atom" on <html> where
  * the theme applies, and removes it elsewhere; the admin sets .dark on
  * <html> for the dark appearance. Every rule is under the attribute.
  *
