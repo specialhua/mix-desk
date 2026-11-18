@@ -160,7 +160,8 @@ const webReadyTimeout = 20 * time.Second
 func (a *app) connect(raw string, save bool) {
 	a.probing = true
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		// Room for probeServer's retries.
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
 		srv, err := probeServer(ctx, raw)
 		a.win.Update(func() {

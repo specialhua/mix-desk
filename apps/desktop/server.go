@@ -76,6 +76,17 @@ func normalizeRoot(raw string) (string, error) {
 	return u.String(), nil
 }
 
+// errNotMixSpace is the answer of a server that is up but is not a Mix
+// Space server, or has no web admin: trying again will not help.
+var errNotMixSpace = errors.New("not a Mix Space server")
+
+// probeAttempts is how many times probeServer tries a server that did not
+// answer, as at launch before the network is up, or during a deploy;
+// probeRetryDelay, times the attempt, is the wait in between.
+const probeAttempts = 3
+
+var probeRetryDelay = time.Second
+
 // probeServer finds where the server answers, as the mxs CLI does: Better
 // Auth's /ok under /api/v3/auth in production, or /auth in development.
 func probeServer(ctx context.Context, raw string) (server, error) {
@@ -83,24 +94,51 @@ func probeServer(ctx context.Context, raw string) (server, error) {
 	if err != nil {
 		return server{}, err
 	}
-	var lastErr error
+	for attempt := 1; ; attempt++ {
+		s, err := probeOnce(ctx, root)
+		if err == nil || errors.Is(err, errNotMixSpace) || attempt == probeAttempts {
+			return s, err
+		}
+		select {
+		case <-ctx.Done():
+			return server{}, err
+		case <-time.After(probeRetryDelay * time.Duration(attempt)):
+		}
+	}
+}
+
+// probeOnce tries the production then the development layout once. A 404
+// only says the layout is not that one; any other failure is why the
+// server could not be reached, and is what is reported: the 404 of the
+// development layout, which every production server answers, would hide
+// it.
+func probeOnce(ctx context.Context, root string) (server, error) {
+	var failure error
 	for _, api := range []string{root + "/api/v3", root} {
 		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, api+"/auth/ok", nil)
 		req.Header.Set("Accept", "application/json")
 		res, err := httpClient.Do(req)
 		if err != nil {
-			lastErr = err
+			if failure == nil {
+				failure = err
+			}
 			continue
 		}
 		io.Copy(io.Discard, io.LimitReader(res.Body, 1<<16))
 		res.Body.Close()
-		if res.StatusCode >= 200 && res.StatusCode < 300 {
+		switch {
+		case res.StatusCode >= 200 && res.StatusCode < 300:
 			s := server{Root: root, API: api}
 			return s, checkAdmin(ctx, s)
+		case res.StatusCode == http.StatusNotFound:
+		case failure == nil:
+			failure = fmt.Errorf("%s/auth/ok: HTTP %d", api, res.StatusCode)
 		}
-		lastErr = fmt.Errorf("%s/auth/ok: HTTP %d", api, res.StatusCode)
 	}
-	return server{}, lastErr
+	if failure != nil {
+		return server{}, failure
+	}
+	return server{}, fmt.Errorf("%w: neither %s/api/v3/auth/ok nor %s/auth/ok exists", errNotMixSpace, root, root)
 }
 
 // checkAdmin makes sure the server serves the web admin, which the app
@@ -114,8 +152,11 @@ func checkAdmin(ctx context.Context, s server) error {
 	}
 	io.Copy(io.Discard, io.LimitReader(res.Body, 1<<20))
 	res.Body.Close()
+	if res.StatusCode >= 500 {
+		return fmt.Errorf("%s: HTTP %d", s.Admin(), res.StatusCode)
+	}
 	if res.StatusCode != http.StatusOK || !strings.Contains(res.Header.Get("Content-Type"), "html") {
-		return fmt.Errorf("the server has no web admin at %s (HTTP %d)", s.Admin(), res.StatusCode)
+		return fmt.Errorf("%w: the server has no web admin at %s (HTTP %d)", errNotMixSpace, s.Admin(), res.StatusCode)
 	}
 	return nil
 }

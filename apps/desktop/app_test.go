@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/egoist/mygo"
 	"image/png"
 	"net/http"
@@ -179,6 +180,52 @@ func TestProbeWithoutAdmin(t *testing.T) {
 	_, err := probeServer(context.Background(), srv.URL)
 	if err == nil || !strings.Contains(err.Error(), "no web admin") {
 		t.Errorf("probeServer without an admin: %v", err)
+	}
+}
+
+// TestProbeFailure checks that a production server that fails is retried,
+// and reported by its own failure, not by the 404 of the development
+// layout.
+func TestProbeFailure(t *testing.T) {
+	defer func(d time.Duration) { probeRetryDelay = d }(probeRetryDelay)
+	probeRetryDelay = time.Millisecond
+
+	serve := func(failures int32) (*httptest.Server, *atomic.Int32) {
+		var calls atomic.Int32
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /api/v3/auth/ok", func(w http.ResponseWriter, r *http.Request) {
+			if calls.Add(1) <= failures {
+				w.WriteHeader(http.StatusBadGateway)
+				return
+			}
+			w.Write([]byte(`{"ok":true}`))
+		})
+		mux.HandleFunc("GET /proxy/qaqdmin", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+		})
+		srv := httptest.NewServer(mux)
+		t.Cleanup(srv.Close)
+		return srv, &calls
+	}
+
+	srv, _ := serve(probeAttempts - 1)
+	if _, err := probeServer(context.Background(), srv.URL); err != nil {
+		t.Errorf("a server that comes back: %v", err)
+	}
+
+	srv, calls := serve(probeAttempts)
+	_, err := probeServer(context.Background(), srv.URL)
+	if err == nil || !strings.Contains(err.Error(), "/api/v3/auth/ok: HTTP 502") {
+		t.Errorf("a server that stays down: %v, want its 502", err)
+	}
+	if calls.Load() != probeAttempts {
+		t.Errorf("tried %d times, want %d", calls.Load(), probeAttempts)
+	}
+
+	none := httptest.NewServer(http.NotFoundHandler())
+	defer none.Close()
+	if _, err := probeServer(context.Background(), none.URL); !errors.Is(err, errNotMixSpace) {
+		t.Errorf("not a Mix Space server: %v", err)
 	}
 }
 
