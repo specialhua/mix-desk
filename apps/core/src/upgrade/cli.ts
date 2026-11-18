@@ -2,20 +2,13 @@ import { parseArgs } from 'node:util'
 
 import { Pool } from 'pg'
 
+import { secretStorageConfigFromEnv } from '../utils/secret-storage-config'
 import { rotateJwtSecret } from './jwt-rotation'
-import { prepareUpgrade, UpgradeError } from './preparation'
 import { readUpgradeState, type UpgradeConfig } from './readiness'
+import { UpgradeError } from './upgrade.error'
 
 export function upgradeConfigFromEnv(env: NodeJS.ProcessEnv): UpgradeConfig {
-  const key = env.MX_ENCRYPT_KEY || env.ENCRYPT_KEY || ''
-  const enabled = env.MX_ENCRYPT_ENABLE || env.ENCRYPT_ENABLE
-  return {
-    key,
-    enable: enabled === undefined ? !!key : enabled === 'true',
-    v2: env.MX_SECRET_STORAGE_V2 === '1' || env.MX_SECRET_STORAGE_V2 === 'true',
-    jwtSecret: env.JWT_SECRET || env.JWTSECRET || '',
-    algorithm: env.ENCRYPT_ALGORITHM || 'aes-256-ecb',
-  }
+  return secretStorageConfigFromEnv(env)
 }
 
 export async function runUpgradeCli(
@@ -30,12 +23,6 @@ export async function runUpgradeCli(
       args: flags,
       options: {
         json: { type: 'boolean' },
-        ...(command === 'prepare'
-          ? {
-              'dry-run': { type: 'boolean' as const },
-              'all-replicas-v2': { type: 'boolean' as const },
-            }
-          : {}),
         ...(command === 'rotate-jwt'
           ? {
               'maintenance-confirmed': { type: 'boolean' as const },
@@ -49,9 +36,9 @@ export async function runUpgradeCli(
     write('Invalid upgrade arguments')
     return 1
   }
-  if (!['check', 'prepare', 'rotate-jwt'].includes(command)) {
+  if (!['check', 'rotate-jwt'].includes(command)) {
     write(
-      'Usage: upgrade check [--json] | prepare --all-replicas-v2 [--dry-run] [--json]',
+      'Usage: upgrade check [--json] | rotate-jwt --maintenance-confirmed --old-jwt-file <path> --new-jwt-file <path>',
     )
     return 1
   }
@@ -77,14 +64,6 @@ export async function runUpgradeCli(
         maintenanceConfirmed: values['maintenance-confirmed'] === true,
         oldJwtFile: values['old-jwt-file'],
         newJwtFile: values['new-jwt-file'],
-      })
-      write(JSON.stringify(result))
-      return 0
-    }
-    if (command === 'prepare') {
-      const result = await prepareUpgrade(pool, upgradeConfigFromEnv(env), {
-        allReplicasV2: flags.includes('--all-replicas-v2'),
-        dryRun: flags.includes('--dry-run'),
       })
       write(JSON.stringify(result))
       return 0
@@ -116,7 +95,7 @@ export async function runUpgradeCli(
                 code:
                   command === 'check'
                     ? 'UPGRADE_CHECK_FAILED'
-                    : 'UPGRADE_PREPARATION_FAILED',
+                    : 'JWT_ROTATION_FAILED',
               },
         ],
       }),

@@ -1,16 +1,14 @@
+import { legacySecret } from 'test/helper/legacy-secret'
 import { createPgTestDatabase } from 'test/helper/pg-verify-url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { readUpgradeState } from '~/upgrade/readiness'
-import { SecretCodec } from '~/utils/secret-codec'
 
 describe('standalone upgrade readiness', () => {
   let context: Awaited<ReturnType<typeof createPgTestDatabase>>
   const config = {
     key: 'ab'.repeat(32),
     jwtSecret: 'jwt-secret-for-upgrade-123456789012345',
-    enable: true,
-    v2: true,
   }
   beforeAll(async () => {
     context = await createPgTestDatabase('mx_upgrade_check')
@@ -21,7 +19,6 @@ describe('standalone upgrade readiness', () => {
     expect(await readUpgradeState(context.pool, config)).toMatchObject({
       installation: 'empty',
       status: 'ready',
-      prepared: false,
     })
   })
 
@@ -29,28 +26,26 @@ describe('standalone upgrade readiness', () => {
     const report = await readUpgradeState(context.pool, {
       key: '',
       jwtSecret: 'short-secret',
-      enable: false,
-      v2: false,
+      deprecatedFlags: { MX_SECRET_STORAGE_V2: 'false' },
     })
     expect(report.status).toBe('needs-action')
     expect(report.issues.map((issue) => issue.code)).toEqual(
       expect.arrayContaining([
         'FIELD_KEY_MISSING',
         'JWT_TOO_SHORT',
-        'V2_WRITES_DISABLED',
+        'DEPRECATED_ENCRYPTION_FLAG',
       ]),
     )
     expect(JSON.stringify(report)).not.toContain('short-secret')
   })
 
   it('counts old formats, detects wrong keys and remains read-only', async () => {
-    const codec = new SecretCodec({ ...config, v2: false })
     await context.pool.query(
       'INSERT INTO options (id, name, value) VALUES ($1, $2, $3)',
       [
         '100',
         'membership',
-        { dodoApiKey: codec.encrypt('private-value', 'membership.dodoApiKey') },
+        { dodoApiKey: legacySecret('private-value', config.key) },
       ],
     )
     const before = (await context.pool.query('SELECT * FROM options')).rows
@@ -75,7 +70,7 @@ describe('standalone upgrade readiness', () => {
   })
   it('does not trust a marker over malformed canonical configuration', async () => {
     await context.pool.query(
-      "DELETE FROM options; INSERT INTO _app_migrations (id) VALUES ('20261108-v18-prepared'); INSERT INTO options (id, name, value) VALUES ('300', 'membership', '42'::jsonb)",
+      "DELETE FROM options; INSERT INTO _app_migrations (id) VALUES ('20261109-canonical-config'); INSERT INTO options (id, name, value) VALUES ('300', 'membership', '42'::jsonb)",
     )
     expect(
       (await readUpgradeState(context.pool, config)).issues.map(
@@ -90,7 +85,25 @@ describe('standalone upgrade readiness', () => {
     expect(await readUpgradeState(context.pool, config)).toMatchObject({
       installation: 'existing',
       status: 'needs-action',
-      prepared: false,
+    })
+  })
+  it('requires the current configuration migration for an existing installation', async () => {
+    await context.pool.query(
+      "DELETE FROM options; INSERT INTO categories (id,name,slug) VALUES ('700','Existing','existing') ON CONFLICT DO NOTHING",
+    )
+    const report = await readUpgradeState(context.pool, config)
+    expect(report.status).toBe('needs-action')
+    expect(report.issues).toContainEqual({ code: 'CONFIG_MIGRATION_MISSING' })
+  })
+
+  it('accepts current existing data after release migration without a separate preparation marker', async () => {
+    await context.pool.query(
+      "DELETE FROM options; DELETE FROM _app_migrations; INSERT INTO _app_migrations (id) VALUES ('20261109-canonical-config')",
+    )
+    expect(await readUpgradeState(context.pool, config)).toMatchObject({
+      installation: 'existing',
+      status: 'ready',
+      issues: [],
     })
   })
 })

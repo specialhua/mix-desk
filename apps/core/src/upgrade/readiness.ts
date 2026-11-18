@@ -1,32 +1,34 @@
 import type { Pool, PoolClient } from 'pg'
 
-import { HASHED_API_KEY_CONFIG_ID } from '../modules/auth/auth.constant'
-import { configSchemaMapping } from '../modules/configs/configs.schema'
-import { visitConfigSecrets } from '../modules/configs/configs.secret-paths'
 import {
+  dropUndeclaredConfigFields,
   LegacyConfigConflictError,
   normalizeLegacyConfig,
-} from '../modules/configs/legacy-config.util'
+  visitLegacyConfigSecrets,
+} from '../database/app-migrations/helpers/legacy-config'
+import {
+  isEncryptedOAuth,
+  unwrapOAuthToken,
+} from '../database/app-migrations/helpers/oauth-token'
+import { HASHED_API_KEY_CONFIG_ID } from '../modules/auth/auth.constant'
+import {
+  isValidStoredConfig,
+  loadCurrentConfig,
+} from '../modules/configs/configs.current'
+import { configSchemaMapping } from '../modules/configs/configs.schema'
+import { CONFIG_FORMAT_MIGRATION_ID } from '../shared/config-format'
 import { SecretCodec } from '../utils/secret-codec'
-import { isEncryptedOAuth, unwrapOAuthToken } from './oauth-token'
+import {
+  inspectSecretStorageConfig,
+  type SecretStorageConfig,
+} from '../utils/secret-storage-config'
 
-export { oauthKey } from './oauth-token'
-
-export const PREPARED_MIGRATION_ID = '20261108-v18-prepared'
-export { CONFIG_UPGRADE_LOCK } from '../shared/config-lock'
-export type UpgradeConfig = {
-  key: string
-  jwtSecret: string
-  enable: boolean
-  v2: boolean
-  algorithm?: string
-}
+export type UpgradeConfig = SecretStorageConfig
 export type UpgradeIssue = { code: string; path?: string }
 export type UpgradeReport = {
   target: 18
   status: 'ready' | 'needs-action' | 'error'
   installation: 'empty' | 'existing'
-  prepared: boolean
   counts: {
     plaintext: number
     ecb: number
@@ -46,6 +48,10 @@ export function isLegacyConfig(name: string, value: any): boolean {
   return (
     name === 'imageGenerationOptions' ||
     name === 'ttsOptions' ||
+    (name === 'mailOptions' &&
+      value?.smtp &&
+      typeof value.smtp === 'object' &&
+      'options' in value.smtp) ||
     (name === 'ai' && value?.version !== 2) ||
     (name === 'thirdPartyServiceIntegration' &&
       value &&
@@ -65,13 +71,8 @@ export async function readUpgradeState(
   database: UpgradeDatabase,
   config: UpgradeConfig,
 ): Promise<UpgradeReport> {
-  const issues: UpgradeIssue[] = []
+  const issues: UpgradeIssue[] = inspectSecretStorageConfig(config)
   const keyValid = /^[\da-f]{64}$/i.test(config.key)
-  if (!config.key) issues.push({ code: 'FIELD_KEY_MISSING' })
-  else if (!keyValid) issues.push({ code: 'FIELD_KEY_INVALID' })
-  if (!config.enable) issues.push({ code: 'ENCRYPTION_DISABLED' })
-  if (config.jwtSecret.length < 32) issues.push({ code: 'JWT_TOO_SHORT' })
-  if (!config.v2) issues.push({ code: 'V2_WRITES_DISABLED' })
   const counts: UpgradeReport['counts'] = {
     plaintext: 0,
     ecb: 0,
@@ -83,7 +84,7 @@ export async function readUpgradeState(
     encryptedOAuth: 0,
     metricsMissing: 0,
   }
-  const codec = new SecretCodec({ ...config, enable: true, v2: true })
+  const codec = new SecretCodec(config)
   const inspect = (secret: string, path: string) => {
     if (!secret) return secret
     if (secret.startsWith('$${mx}$$v2.')) counts.v2++
@@ -104,9 +105,13 @@ export async function readUpgradeState(
   for (const row of options) {
     if (isLegacyConfig(row.name, row.value)) counts.legacyConfig++
     if (row.value && typeof row.value === 'object')
-      visitConfigSecrets(row.value, row.name, inspect)
+      visitLegacyConfigSecrets(row.value, row.name, inspect)
   }
-  const knownRows = options.filter((row) => row.name in configSchemaMapping)
+  const knownRows = options.filter(
+    (row) =>
+      row.name in configSchemaMapping ||
+      ['imageGenerationOptions', 'ttsOptions'].includes(row.name),
+  )
   for (const row of knownRows) {
     if (!row.value || typeof row.value !== 'object' || Array.isArray(row.value))
       issues.push({ code: 'CONFIG_SHAPE_UNSUPPORTED', path: row.name })
@@ -123,17 +128,19 @@ export async function readUpgradeState(
       const raw = Object.fromEntries(
         knownRows.map((row) => [
           row.name,
-          visitConfigSecrets(row.value, row.name, (secret, path) =>
+          visitLegacyConfigSecrets(row.value, row.name, (secret, path) =>
             codec.decrypt(secret, path),
           ),
         ]),
       )
-      const normalized = normalizeLegacyConfig(raw)
-      for (const row of knownRows) {
-        if (
-          !configSchemaMapping[row.name].safeParse(normalized[row.name]).success
-        )
-          issues.push({ code: 'CONFIG_SHAPE_UNSUPPORTED', path: row.name })
+      const legacy = normalizeLegacyConfig(raw)
+      dropUndeclaredConfigFields(legacy)
+      const normalized = loadCurrentConfig(legacy)
+      for (const key of Object.keys(
+        configSchemaMapping,
+      ) as (keyof typeof configSchemaMapping)[]) {
+        if (!isValidStoredConfig(key, normalized[key]))
+          issues.push({ code: 'CONFIG_SHAPE_UNSUPPORTED', path: key })
       }
     } catch (error) {
       issues.push(
@@ -188,12 +195,6 @@ export async function readUpgradeState(
     )
     counts.metricsMissing += result.rows[0].count
   }
-  const prepared =
-    (
-      await database.query('SELECT 1 FROM _app_migrations WHERE id = $1', [
-        PREPARED_MIGRATION_ID,
-      ])
-    ).rowCount !== 0
   // A new database may contain migration ledgers, but no application data.
   const tables = (
     await database.query(
@@ -227,16 +228,22 @@ export async function readUpgradeState(
     counts.plainApiKeys ||
     counts.plainOAuth
   )
-    issues.push({ code: 'CREDENTIALS_NEED_PREPARATION' })
+    issues.push({ code: 'CREDENTIALS_NEED_MIGRATION' })
   if (counts.legacyConfig) issues.push({ code: 'LEGACY_CONFIG' })
   if (counts.metricsMissing) issues.push({ code: 'METRICS_INCOMPLETE' })
-  if (installation === 'existing' && !prepared)
-    issues.push({ code: 'PREPARATION_MARKER_MISSING' })
+  if (
+    installation === 'existing' &&
+    !(
+      await database.query('SELECT 1 FROM _app_migrations WHERE id = $1', [
+        CONFIG_FORMAT_MIGRATION_ID,
+      ])
+    ).rowCount
+  )
+    issues.push({ code: 'CONFIG_MIGRATION_MISSING' })
   return {
     target: 18,
     status: issues.length ? 'needs-action' : 'ready',
     installation,
-    prepared,
     counts,
     issues,
   }

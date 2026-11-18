@@ -1,12 +1,8 @@
 import { defaultKeyHasher } from '@better-auth/api-key'
-import {
-  parseEnvelope,
-  symmetricDecrypt,
-  symmetricEncrypt,
-} from 'better-auth/crypto'
+import { symmetricEncrypt } from 'better-auth/crypto'
 import { eq } from 'drizzle-orm'
 
-import { SECRET_STORAGE_V2, SECURITY } from '~/app.config'
+import { SECURITY } from '~/app.config'
 import {
   accounts,
   apiKeys,
@@ -18,6 +14,7 @@ import { HASHED_API_KEY_CONFIG_ID } from '~/modules/auth/auth.constant'
 import { encryptObject } from '~/modules/configs/configs.encrypt.util'
 import { EncryptUtil } from '~/utils/encrypt.util'
 
+import { unwrapOAuthToken } from './helpers/oauth-token'
 import type { AppMigration } from './types'
 
 export const migration: AppMigration = {
@@ -26,9 +23,9 @@ export const migration: AppMigration = {
     'Protect existing credentials after every replica enables v2 writes',
   async up({ db, logger }) {
     EncryptUtil.assertConfigured()
-    if (!SECRET_STORAGE_V2 || !SECURITY.jwtSecret) {
+    if (!SECURITY.jwtSecret || SECURITY.jwtSecret.length < 32) {
       throw new Error(
-        'Secret migration requires MX_SECRET_STORAGE_V2=1 and JWT_SECRET',
+        'Secret migration requires JWT_SECRET of at least 32 characters',
       )
     }
     const oauthKey = {
@@ -96,14 +93,11 @@ export const migration: AppMigration = {
         for (const field of ['accessToken', 'refreshToken'] as const) {
           const token = row[field]
           if (!token) continue
-          if (token.startsWith('$ba$')) {
-            if (!parseEnvelope(token))
-              throw new Error('Malformed OAuth token envelope')
-            await symmetricDecrypt({ key: oauthKey, data: token })
-          } else {
+          const plain = await unwrapOAuthToken(token, SECURITY.jwtSecret)
+          if (!token.startsWith('$ba$')) {
             patch[field] = await symmetricEncrypt({
               key: oauthKey,
-              data: token,
+              data: plain,
             })
           }
         }

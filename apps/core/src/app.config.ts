@@ -4,24 +4,24 @@ import path from 'node:path'
 import { seconds } from '@nestjs/throttler'
 import { Option, program } from 'commander'
 import { load as yamlLoad } from 'js-yaml'
-import nodeMachineId from 'node-machine-id'
 
 import { isDebugMode, isDev } from './global/env.global'
+import { resolveDevelopmentEncryptionKey } from './utils/development-encryption-key'
 import {
   parseRedisConnectionString,
   resolveRedisConnectionStringEnv,
 } from './utils/redis-config.util'
+import {
+  assertSecretStorageConfig,
+  secretStorageConfigFromEnv,
+} from './utils/secret-storage-config'
 import { parseBooleanishValue } from './utils/tool.util'
-
-const { machineIdSync } = nodeMachineId
 
 const {
   PORT: ENV_PORT,
   ALLOWED_ORIGINS,
   MX_ENCRYPT_KEY,
-  MX_ENCRYPT_ENABLE,
   ENCRYPT_KEY: ENV_ENCRYPT_KEY,
-  ENCRYPT_ENABLE: ENV_ENCRYPT_ENABLE,
   CDN_CACHE_HEADER,
   FORCE_CACHE_HEADER,
   THROTTLE_TTL,
@@ -33,7 +33,6 @@ const {
 
 const ENV_JWT_SECRET = JWT_SECRET || JWTSECRET
 const ENCRYPT_KEY_FROM_ENV = MX_ENCRYPT_KEY || ENV_ENCRYPT_KEY
-const ENCRYPT_ENABLE_FROM_ENV = MX_ENCRYPT_ENABLE || ENV_ENCRYPT_ENABLE
 const REDIS_CONNECTION_STRING_FROM_ENV = resolveRedisConnectionStringEnv()
 
 function applyArgvEnvFallback(argv: Record<string, any>) {
@@ -127,14 +126,7 @@ const commander = program
       '64-character hexadecimal encryption key',
     ).default(ENCRYPT_KEY_FROM_ENV, '[configured]'),
   )
-  .option(
-    '--encrypt_enable',
-    'enable encrypt security field, please remember encrypt key.',
-  )
-  .option(
-    '--encrypt_algorithm <string>',
-    'custom encrypt algorithm, default is aes-256-ecb',
-  )
+  .option('--encrypt_enable', 'deprecated no-op; encryption is always required')
   // throttle
   .option('--throttle_ttl <number>', 'throttle ttl')
   .option('--throttle_limit <number>', 'throttle limit')
@@ -276,33 +268,30 @@ export const THROTTLE_OPTIONS = {
   limit: Number(argv.throttle_limit ?? THROTTLE_LIMIT ?? 100),
 }
 
-const ENCRYPT_KEY = argv.encrypt_key
-// shortcut: enable v2 writes only after all replicas have the compatible reader; remove after the compatibility release.
-export const SECRET_STORAGE_V2 =
-  process.env.MX_SECRET_STORAGE_V2 === '1' ||
-  (parseBooleanishValue(process.env.MX_SECRET_STORAGE_V2) ?? false)
-
+const secretStorageConfig = secretStorageConfigFromEnv(process.env)
 export const ENCRYPT = {
-  key: ENCRYPT_KEY || machineIdSync(),
-  enable:
-    parseBooleanishValue(argv.encrypt_enable ?? ENCRYPT_ENABLE_FROM_ENV) ??
-    !!ENCRYPT_KEY,
-  algorithm: argv.encrypt_algorithm || 'aes-256-ecb',
+  key: resolveDevelopmentEncryptionKey(
+    argv.encrypt_key || '',
+    isDev,
+    path.join(process.cwd(), 'tmp'),
+  ),
 }
-
-if (ENCRYPT.enable && (!ENCRYPT_KEY || !/^[\da-f]{64}$/i.test(ENCRYPT_KEY)))
-  throw new Error(
-    'Encryption requires an explicit 64-character hexadecimal MX_ENCRYPT_KEY or ENCRYPT_KEY',
+assertSecretStorageConfig({
+  ...ENCRYPT,
+  jwtSecret: SECURITY.jwtSecret || '',
+  removedOptions: {
+    ...secretStorageConfig.removedOptions,
+    encrypt_algorithm: argv.encrypt_algorithm,
+  },
+  deprecatedFlags: {
+    ...secretStorageConfig.deprecatedFlags,
+    encrypt_enable: argv.encrypt_enable,
+  },
+})
+if (isDev && !argv.encrypt_key)
+  console.warn(
+    'Using the local development encryption key at tmp/dev-encryption.key; preserve this file with your development database',
   )
-
-if (
-  SECRET_STORAGE_V2 &&
-  (!ENCRYPT.enable || !SECURITY.jwtSecret || SECURITY.jwtSecret.length < 32)
-) {
-  throw new Error(
-    'MX_SECRET_STORAGE_V2 requires encryption and a JWT_SECRET of at least 32 characters',
-  )
-}
 
 export const TELEMETRY = {
   enable: !parseBooleanishValue(argv.disable_telemetry ?? MX_DISABLE_TELEMETRY),
