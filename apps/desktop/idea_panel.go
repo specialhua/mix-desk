@@ -114,7 +114,11 @@ func (a *app) setupIdeas() {
 		Content:       ui.View(a.ideaPanelView),
 	})
 	// Escape, Cmd+W: hide, keeping what is written, to show again at once.
+	// A quit closes it (trackQuit); OnBeforeQuit saved the draft.
 	win.OnClose(func(e *mygo.CloseEvent) {
+		if a.quitting {
+			return
+		}
 		e.PreventDefault()
 		a.hideIdeaPanel()
 	})

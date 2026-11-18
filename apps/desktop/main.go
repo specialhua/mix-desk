@@ -66,6 +66,10 @@ type app struct {
 	// overrides (themes.go).
 	themeUnsupported bool
 
+	// quitting is set while a quit is under way (trackQuit), for the
+	// windows that hide instead of closing to let it close them.
+	quitting bool
+
 	// toasts wait for the main window's next frame (notify).
 	toasts []ui.Toast
 
@@ -133,6 +137,7 @@ func main() {
 			Theme: a.beginFrame,
 		})
 		a.win = a.shell.Window()
+		a.trackQuit()
 		a.keepInBackground()
 		a.setupWriting()
 		a.setupIdeas()

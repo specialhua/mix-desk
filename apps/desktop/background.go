@@ -18,13 +18,9 @@ func (a *app) keepInBackground() {
 	if runtime.GOOS != "darwin" {
 		return
 	}
-	quitting := false
-	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { quitting = true })
-	mygo.App.OnQuitCanceled(func() { quitting = false })
-
 	win := a.win
 	win.OnClose(func(e *mygo.CloseEvent) {
-		if quitting {
+		if a.quitting {
 			return
 		}
 		e.PreventDefault()
@@ -50,6 +46,16 @@ func (a *app) keepInBackground() {
 	})
 	// The settings window closed while the main one is hidden: stay.
 	mygo.App.OnWindowAllClosed(func() {})
+}
+
+// trackQuit keeps a.quitting. A quit closes the windows one by one and is
+// canceled by the first that refuses, after those before it are gone: a
+// window that hides instead of closing must let a quit close it, or the
+// main window, closed first, is gone while the app stays, with nothing to
+// bring back from the Dock.
+func (a *app) trackQuit() {
+	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { a.quitting = true })
+	mygo.App.OnQuitCanceled(func() { a.quitting = false })
 }
 
 // showMain shows and focuses the main window, hidden or minimized.
