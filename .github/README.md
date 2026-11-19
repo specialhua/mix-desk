@@ -46,7 +46,7 @@
 
 ## 使用
 
-1. 从 [Releases](https://github.com/specialhua/mx-core-desktop/releases) 下载安装包，或按下文自行构建。
+1. 从 [Releases](https://github.com/specialhua/mix-desk/releases) 下载安装包，或按下文自行构建。
 2. 首次启动输入 Mix Space 服务地址，用密码或 Passkey 登录。
 
 | 快捷键 | 作用 |
