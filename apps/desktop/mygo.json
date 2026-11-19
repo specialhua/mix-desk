@@ -2,7 +2,7 @@
   "name": "Mix Desk",
   "slug": "mix-desk",
   "identifier": "space.mx.desktop",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "out": "build",
   "macos": {
     "icon": "branding/AppIcon.icns"
