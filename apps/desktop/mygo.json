@@ -1,6 +1,6 @@
 {
-  "name": "Mix Space",
-  "slug": "mix-space",
+  "name": "Mix Desk",
+  "slug": "mix-desk",
   "identifier": "space.mx.desktop",
   "version": "0.5.2",
   "out": "build",

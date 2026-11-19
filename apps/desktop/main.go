@@ -1,4 +1,4 @@
-// Mix Space is the desktop client of the Mix Space admin: a native window,
+// Mix Desk is the desktop client of the Mix Space admin: a native window,
 // sidebar and menus around the web admin the server serves, which shows in
 // a web view. It adds no features of its own; everything past the sidebar is
 // the web admin, so it follows the server's version without a new release.
@@ -119,7 +119,7 @@ func main() {
 
 	mygo.App.WhenReady(func() {
 		a.shell = sidebar.NewShell(sidebar.ShellOptions{
-			Title:        "Mix Space",
+			Title:        "Mix Desk",
 			Width:        1360,
 			Height:       880,
 			MinWidth:     900,

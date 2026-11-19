@@ -1,6 +1,10 @@
-# Mix Space Desktop
+<p align="center">
+  <img src="resources/icon.png" alt="Mix Desk" width="120" />
+</p>
 
-Mix Space 博客后台的桌面客户端（macOS 优先，Windows / Linux 同源构建）。
+<h1 align="center">Mix Desk</h1>
+
+<p align="center">Mix Space 博客后台的桌面客户端（macOS 优先，Windows / Linux 同源构建）。</p>
 
 ## 是什么
 
