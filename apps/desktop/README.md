@@ -26,7 +26,7 @@
 
 <table>
   <tr>
-    <td colspan="2"><img src="docs/screenshots/theme-atom.png" alt="仪表盘：原生侧边栏、玻璃面包屑、Atom 深色" /><br/><sub>仪表盘 · Atom 深色</sub></td>
+    <td colspan="2"><img src="docs/screenshots/theme-light-dark.png" alt="仪表盘：左上浅色、右下深色" /><br/><sub>仪表盘 · 浅色 / 深色</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/writing-glass.png" alt="写作页：玻璃面包屑与展开的设置球" /><br/><sub>写作页 · 玻璃面包屑与设置球</sub></td>
